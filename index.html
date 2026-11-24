@@ -13,7 +13,7 @@ header{position:sticky;top:0;background:var(--card);border-bottom:1px solid var(
 h1{font-size:20px;color:var(--pr)}
 .btn{background:var(--pr);color:#fff;border:0;border-radius:10px;padding:10px 14px;font-size:15px;cursor:pointer}
 .btn.s{background:transparent;color:var(--pr);border:1px solid var(--pr)}
-input,textarea{width:100%;padding:11px;border-radius:10px;border:1px solid var(--bd);background:var(--card);color:var(--tx);font-size:15px;margin:6px 0}
+input,textarea,select{width:100%;padding:11px;border-radius:10px;border:1px solid var(--bd);background:var(--card);color:var(--tx);font-size:15px;margin:6px 0}
 .box{padding:16px}
 .card{background:var(--card);border:1px solid var(--bd);border-radius:14px;margin:12px;overflow:hidden}
 .card img{width:100%;display:block;max-height:420px;object-fit:cover}
@@ -61,6 +61,8 @@ nav span{display:block;font-size:20px}
     <button class="btn" style="width:100%" onclick="publicar()">Publicar</button>
   </section>
 
+  <section id="v-perfil" class="box hidden"></section>
+
   <section id="v-premium" class="box hidden">
     <h2>Pesca Pro <span class="tag">PREMIUM</span></h2>
     <div id="bloqueo" class="card lock">
@@ -69,14 +71,15 @@ nav span{display:block;font-size:20px}
       <button class="btn" style="margin-top:14px" onclick="activar()">Activar Premium (demo)</button>
     </div>
     <div id="pro" class="hidden">
-      <div class="card pad"><div class="mu">Fase lunar hoy</div><div class="big" id="luna"></div><div class="mu" id="lunaT"></div></div>
-      <div class="card pad"><div class="mu">Hoy (datos de ejemplo)</div>
-        <div class="grid" style="margin-top:8px">
-          <div>🌡️ Aire<div class="big">19°C</div></div><div>🌊 Mar<div class="big">0,8 m</div></div>
-          <div>💨 Viento<div class="big">12 km/h</div></div><div>🌅 Agua<div class="big">17°C</div></div>
-        </div></div>
-      <div class="card pad"><div class="mu">Mareas (aprox., ejemplo)</div><div id="mareas"></div></div>
-      <div class="card pad"><div class="mu">Mejores días (según la luna)</div><div id="dias"></div></div>
+      <div class="card pad"><div class="mu">Tu zona y tipo de pesca</div>
+        <input id="zona" placeholder="Localidad (ej. Tarifa)">
+        <select id="tipo" onchange="cargarPro()"><option value="spinning">Spinning</option><option value="surfcasting">Surfcasting</option><option value="bote">Desde bote</option><option value="rio">Río / agua dulce</option><option value="mosca">Mosca</option></select>
+        <button class="btn" onclick="buscarZona()">Ver pronóstico</button><p class="mu" id="zn"></p></div>
+      <div id="pronos"></div>
+      <div class="card pad"><h3>📅 Mi calendario de capturas</h3>
+        <input id="cd" type="date"><input id="ce" placeholder="Especie"><input id="cn" placeholder="Notas (cebo, hora...)">
+        <button class="btn" onclick="addCap()">Guardar captura</button>
+        <p class="mu">Se trae el tiempo de ese día para la zona elegida arriba.</p><div id="cal"></div></div>
     </div>
   </section>
 
@@ -84,6 +87,7 @@ nav span{display:block;font-size:20px}
     <button class="on" data-v="feed" onclick="ir('feed')"><span>🏠</span>Inicio</button>
     <button data-v="nuevo" onclick="ir('nuevo')"><span>➕</span>Publicar</button>
     <button data-v="premium" onclick="ir('premium')"><span>🌙</span>Pesca Pro</button>
+    <button data-v="perfil" onclick="verPerfil()"><span>👤</span>Perfil</button>
   </nav>
 </div>
 
@@ -135,7 +139,7 @@ function salir(){ if (usaFB) firebase.auth().signOut(); ls.set("if_user", null);
 function entrar(){ $("login").classList.add("hidden"); $("app").classList.remove("hidden"); ir("feed"); }
 
 function ir(v){
-  ["feed","nuevo","premium"].forEach(x => $("v-"+x).classList.toggle("hidden", x !== v));
+  ["feed","nuevo","premium","perfil"].forEach(x => $("v-"+x).classList.toggle("hidden", x !== v));
   document.querySelectorAll("nav button").forEach(b => b.classList.toggle("on", b.dataset.v === v));
   if (v === "feed") pintarFeed(); if (v === "premium") pintarPro();
 }
@@ -155,9 +159,9 @@ function dibujar(todos){
     const lk = p.likes ? p.likes.length : (p.m||0), yo = usaFB && p.likes && p.likes.includes(user);
     return `<div class="card">
     ${p.f ? `<img src="${esc(p.f)}" alt="">` : `<div style="height:160px;display:grid;place-items:center;font-size:60px;background:var(--bd)">🐟</div>`}
-    <div class="pad"><b>@${esc(p.u)}</b> · <span class="mu">${esc(p.l||"")}</span> ${p.e ? `<span class="tag">${esc(p.e)}</span>` : ""}
+    <div class="pad"><b ${p.uid ? `style="cursor:pointer" onclick="verPerfil('${esc(p.uid)}')"` : ""}>@${esc(p.u)}</b> · <span class="mu">${esc(p.l||"")}</span> ${p.e ? `<span class="tag">${esc(p.e)}</span>` : ""}
     <p style="margin:6px 0">${esc(p.t||"")}</p>
-    <button class="btn s" onclick="like('${esc(p.id||"")}', this)" data-n="${lk}">${yo ? "❤️" : "🤍"} ${lk}</button></div></div>`;
+    <button class="btn s" onclick="like('${esc(p.id||"")}', this)" data-n="${lk}">${yo ? "❤️" : "🤍"} ${lk}</button> <button class="btn s" onclick="abrirCom('${esc(p.id||"")}')">💬</button><div id="cm-${esc(p.id||"")}"></div></div></div>`;
   }).join("");
 }
 function like(id, b){
@@ -182,7 +186,7 @@ async function publicar(){
   const p = {u:(user||"yo").split("@")[0], e:$("esp").value, l:$("lug").value, t:$("txt").value, f: f ? await reducir(f) : ""};
   try {
     if (usaFB) {
-      p.uid = firebase.auth().currentUser.uid; p.likes = []; p.c = firebase.firestore.FieldValue.serverTimestamp();
+      p.uid = uid(); const pf = await db.collection("users").doc(p.uid).get(); if (pf.exists && pf.data().n) p.u = pf.data().n; p.likes = []; p.c = firebase.firestore.FieldValue.serverTimestamp();
       await db.collection("posts").add(p);
     } else {
       p.m = 0; const a = ls.get("if_posts", []); a.unshift(p); ls.set("if_posts", a.slice(0, 15));
@@ -198,21 +202,103 @@ function faseLuna(a){
   const n = ["🌑 Nueva","🌒 Creciente","🌓 Cuarto creciente","🌔 Gibosa creciente","🌕 Llena","🌖 Gibosa menguante","🌗 Cuarto menguante","🌘 Menguante"];
   return n[Math.floor(((a / 29.530588853) * 8 + .5)) % 8];
 }
+const uid = () => firebase.auth().currentUser.uid;
+async function verPerfil(id){
+  ir("perfil"); const el = $("v-perfil");
+  if (!usaFB) { el.innerHTML = '<p class="mu">Los perfiles necesitan Firebase conectado.</p>'; return; }
+  id = id || uid(); const me = id === uid(), R = db.collection("users").doc(id);
+  const [u, fs, ps] = await Promise.all([R.get(), R.collection("followers").get(), db.collection("posts").where("uid","==",id).get()]);
+  const d = u.exists ? u.data() : {}, sigo = fs.docs.some(x => x.id === uid());
+  el.innerHTML = `<h2>${esc(d.n||"Pescador")}</h2><p class="mu">🎣 ${esc(d.t||"Sin especificar")} · ${fs.size} seguidores · ${ps.size} capturas</p><p style="margin:8px 0">${esc(d.b||"")}</p>` +
+  (me ? `<div class="card pad"><b>Editar mi perfil</b><input id="pn" placeholder="Nombre" value="${esc(d.n||"")}"><input id="pt" placeholder="Tipo de pesca (ej. Spinning, surfcasting)" value="${esc(d.t||"")}"><textarea id="pb" rows="3" placeholder="Descripción">${esc(d.b||"")}</textarea><button class="btn" onclick="guardarPerfil()">Guardar</button></div>`
+        : `<button class="btn${sigo?" s":""}" onclick="seguir('${id}',${sigo})">${sigo?"Siguiendo ✓":"Seguir"}</button>`) +
+  `<div class="grid" style="margin-top:12px">${ps.docs.map(x => x.data().f ? `<img src="${esc(x.data().f)}" style="width:100%;border-radius:10px">` : "").join("")}</div>`;
+}
+async function guardarPerfil(){ await db.collection("users").doc(uid()).set({n:$("pn").value.trim(), t:$("pt").value.trim(), b:$("pb").value.trim()}, {merge:true}); verPerfil(); }
+async function seguir(id, sigo){ const r = db.collection("users").doc(id).collection("followers").doc(uid()); await (sigo ? r.delete() : r.set({c:firebase.firestore.FieldValue.serverTimestamp()})); verPerfil(id); }
+
+async function abrirCom(id){
+  if (!usaFB || !id) return;
+  const s = await db.collection("posts").doc(id).collection("comments").orderBy("c").limit(50).get();
+  $("cm-"+id).innerHTML = s.docs.map(d => `<p class="mu"><b>@${esc(d.data().u)}</b> ${esc(d.data().t)}</p>`).join("") + `<input id="ci-${id}" placeholder="Escribe un comentario"><button class="btn s" onclick="enviarCom('${id}')">Enviar</button>`;
+}
+async function enviarCom(id){
+  const t = $("ci-"+id).value.trim(); if (!t) return;
+  await db.collection("posts").doc(id).collection("comments").add({t, u:user.split("@")[0], uid:uid(), c:firebase.firestore.FieldValue.serverTimestamp()});
+  abrirCom(id);
+}
+
+const LIM = {spinning:[25,1.5], surfcasting:[30,2.5], bote:[20,1], rio:[30,99], mosca:[18,99]};
+let cal = new Date(), caps = [];
 function pintarPro(){
   const p = ls.get("if_premium", false);
   $("bloqueo").classList.toggle("hidden", p); $("pro").classList.toggle("hidden", !p);
   if (!p) return;
-  const hoy = new Date(), a = edadLuna(hoy), ilu = Math.round((1 - Math.cos(2*Math.PI*a/29.530588853)) / 2 * 100);
-  $("luna").textContent = faseLuna(a); $("lunaT").textContent = "Iluminación: " + ilu + "%";
-  let m = "";
-  for (let h = 0; h < 24; h += 3) { const alt = 1 + Math.sin(2*Math.PI*(h - 3) / 12.42); m += `<div class="mu" style="margin-top:8px">${String(h).padStart(2,"0")}:00 · ${(alt*1.2).toFixed(1)} m</div><div class="bar"><i style="width:${alt*50}%"></i></div>`; }
-  $("mareas").innerHTML = m;
-  let d = "";
-  for (let i = 0; i < 7; i++) {
-    const f = new Date(hoy.getTime() + i*864e5), e = edadLuna(f), cerca = Math.min(e % 14.765, 14.765 - e % 14.765), pts = Math.round((1 - cerca / 7.4) * 100);
-    d += `<div style="margin-top:10px"><b>${f.toLocaleDateString("es-ES",{weekday:"long",day:"numeric"})}</b> <span class="mu">${faseLuna(e)}</span><div class="bar"><i style="width:${pts}%"></i></div></div>`;
-  }
-  $("dias").innerHTML = d;
+  $("tipo").value = ls.get("if_tipo", "spinning");
+  const z = ls.get("if_zona", null); $("zn").textContent = z ? "📍 " + z.n : "Elige una localidad para ver tu pronóstico.";
+  if (z) cargarPro();
+  cal = new Date(); cal.setDate(1); pintarCal();
+}
+async function buscarZona(){
+  const q = $("zona").value.trim(); if (!q) return;
+  try {
+    const r = await (await fetch("https://geocoding-api.open-meteo.com/v1/search?count=1&language=es&name=" + encodeURIComponent(q))).json();
+    if (!r.results) { $("zn").textContent = "No encuentro ese lugar."; return; }
+    const z = r.results[0]; ls.set("if_zona", {n: z.name + (z.admin1 ? ", " + z.admin1 : ""), lat: z.latitude, lon: z.longitude});
+    $("zn").textContent = "📍 " + z.name; cargarPro();
+  } catch(e){ $("zn").textContent = "No hay conexión con el servicio del tiempo."; }
+}
+async function cargarPro(){
+  const z = ls.get("if_zona", null); if (!z) return;
+  const t = $("tipo").value; ls.set("if_tipo", t); const L = LIM[t];
+  $("pronos").innerHTML = '<p class="mu box">Cargando…</p>';
+  try {
+    const q = `latitude=${z.lat}&longitude=${z.lon}&timezone=auto&forecast_days=7`;
+    const [w, m] = await Promise.all([
+      fetch(`https://api.open-meteo.com/v1/forecast?${q}&current=temperature_2m,pressure_msl,wind_speed_10m&hourly=wind_speed_10m,precipitation_probability`).then(r => r.json()),
+      fetch(`https://marine-api.open-meteo.com/v1/marine?${q}&current=sea_surface_temperature&hourly=wave_height,sea_level_height_msl`).then(r => r.json()).catch(() => ({}))]);
+    const H = w.hourly, M = m.hourly || {}, c = w.current || {}, mc = m.current || {};
+    const av = (a, i) => { if (!a) return null; const v = a.slice(i*24+6, i*24+21).filter(n => n != null); return v.length ? v.reduce((s, n) => s + n, 0) / v.length : null; };
+    let h = "";
+    for (let i = 0; i < 7; i++) {
+      const f = new Date(H.time[i*24]), v = av(H.wind_speed_10m, i) || 0, o = av(M.wave_height, i), r = av(H.precipitation_probability, i) || 0;
+      const lu = edadLuna(new Date(f.getTime() + 12*36e5)), near = Math.min(lu % 14.765, 14.765 - lu % 14.765);
+      const s = Math.max(0, Math.min(100, Math.round(100 - Math.max(0, (v - L[0]) * 3) - Math.max(0, ((o || 0) - L[1]) * 30) - r * .3 + (near < 2 ? 10 : 0))));
+      h += `<div class="card pad"><b>${f.toLocaleDateString("es-ES",{weekday:"long",day:"numeric"})}</b> ${faseLuna(lu).slice(0,2)}<div class="bar"><i style="width:${s}%"></i></div><p class="mu">Índice ${s}/100 · viento ${Math.round(v)} km/h · oleaje ${o == null ? "—" : o.toFixed(1) + " m"} · lluvia ${Math.round(r)}%</p></div>`;
+    }
+    let md = ""; const S = (M.sea_level_height_msl || []).slice(0, 24);
+    if (S.length && S[0] != null) { const lo = Math.min(...S), hi = Math.max(...S); for (let k = 0; k < 24; k += 3) md += `<div class="mu" style="margin-top:6px">${String(k).padStart(2,"0")}:00 · ${S[k].toFixed(2)} m</div><div class="bar"><i style="width:${(S[k]-lo)/(hi-lo||1)*100}%"></i></div>`; }
+    else md = '<p class="mu">Sin datos de marea para esta zona.</p>';
+    $("pronos").innerHTML = `<div class="card pad"><div class="mu">Ahora en ${esc(z.n)}</div><div class="grid" style="margin-top:8px"><div>🌡️ Aire<div class="big">${Math.round(c.temperature_2m)}°C</div></div><div>🌊 Agua<div class="big">${mc.sea_surface_temperature == null ? "—" : Math.round(mc.sea_surface_temperature) + "°C"}</div></div><div>💨 Viento<div class="big">${Math.round(c.wind_speed_10m)} km/h</div></div><div>🧭 Presión<div class="big">${Math.round(c.pressure_msl)} hPa</div></div></div></div><div class="card pad"><div class="mu">Mareas hoy (modelo global, orientativo)</div>${md}</div>` + h + '<p class="mu box">Datos: Open-Meteo. Son estimaciones de modelos meteorológicos y el índice de pesca es orientativo (viento, oleaje, lluvia y luna según tu tipo de pesca): ninguna fuente es 100% exacta.</p>';
+  } catch(e){ $("pronos").innerHTML = '<p class="mu box">No se pudo cargar el pronóstico. Revisa tu conexión.</p>'; }
+}
+
+async function pintarCal(){
+  if (!usaFB) { $("cal").innerHTML = '<p class="mu">Necesita Firebase conectado.</p>'; return; }
+  const s = await db.collection("users").doc(uid()).collection("catches").orderBy("d","desc").limit(500).get();
+  caps = s.docs.map(d => ({id:d.id, ...d.data()})); dibCal();
+}
+function dibCal(){
+  const y = cal.getFullYear(), m = cal.getMonth(), ini = (new Date(y, m, 1).getDay() + 6) % 7, n = new Date(y, m + 1, 0).getDate();
+  const k = d => y + "-" + String(m + 1).padStart(2, "0") + "-" + String(d).padStart(2, "0");
+  let g = "<div></div>".repeat(ini);
+  for (let d = 1; d <= n; d++) g += `<div style="text-align:center;padding:6px 0;border-radius:8px;${caps.some(x => x.d === k(d)) ? "background:var(--ac);color:#fff" : ""}">${d}</div>`;
+  const mes = caps.filter(x => x.d.slice(0, 7) === k(1).slice(0, 7));
+  $("cal").innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center"><button class="btn s" onclick="cal.setMonth(cal.getMonth()-1);dibCal()">◀</button><b>${cal.toLocaleDateString("es-ES",{month:"long",year:"numeric"})}</b><button class="btn s" onclick="cal.setMonth(cal.getMonth()+1);dibCal()">▶</button></div><div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin:10px 0">${g}</div>` +
+    (mes.map(x => `<div class="card pad"><b>${x.d}</b> ${esc(x.e)} <span class="mu">${esc(x.l||"")}</span><p class="mu">${esc(x.k||"")}</p><p>${esc(x.t||"")}</p></div>`).join("") || '<p class="mu">Sin capturas este mes.</p>');
+}
+async function addCap(){
+  const d = $("cd").value, e = $("ce").value.trim(), z = ls.get("if_zona", null);
+  if (!d || !e) { alert("Pon la fecha y la especie."); return; }
+  let k = "";
+  if (z) { try {
+    const r = await (await fetch(`https://archive-api.open-meteo.com/v1/archive?latitude=${z.lat}&longitude=${z.lon}&start_date=${d}&end_date=${d}&hourly=temperature_2m,pressure_msl,wind_speed_10m&timezone=auto`)).json();
+    const a = x => { const v = r.hourly[x].filter(n => n != null); return v.length ? Math.round(v.reduce((s, n) => s + n, 0) / v.length) : "?"; };
+    k = a("temperature_2m") + "°C · viento " + a("wind_speed_10m") + " km/h · " + a("pressure_msl") + " hPa · ";
+  } catch(e){} }
+  k += faseLuna(edadLuna(new Date(d + "T12:00")));
+  await db.collection("users").doc(uid()).collection("catches").add({d, e, l: z ? z.n : "", t: $("cn").value, k});
+  ["cd","ce","cn"].forEach(i => $(i).value = ""); pintarCal();
 }
 
 // Recordar sesión
