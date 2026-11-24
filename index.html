@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>InstaFish</title>
+<style>
+:root{--bg:#f2f7f9;--card:#fff;--tx:#0b2a36;--mu:#5d7783;--pr:#0a7ea4;--ac:#f59e0b;--bd:#dbe7ec}
+@media (prefers-color-scheme:dark){:root{--bg:#07181f;--card:#0e2832;--tx:#e8f3f7;--mu:#8aa8b4;--pr:#2bb3de;--bd:#1b3b47}}
+*{box-sizing:border-box;margin:0}
+body{font-family:system-ui,sans-serif;background:var(--bg);color:var(--tx);max-width:480px;margin:auto;min-height:100vh;padding-bottom:70px}
+header{position:sticky;top:0;background:var(--card);border-bottom:1px solid var(--bd);padding:12px 16px;display:flex;justify-content:space-between;align-items:center;z-index:5}
+h1{font-size:20px;color:var(--pr)}
+.btn{background:var(--pr);color:#fff;border:0;border-radius:10px;padding:10px 14px;font-size:15px;cursor:pointer}
+.btn.s{background:transparent;color:var(--pr);border:1px solid var(--pr)}
+input,textarea{width:100%;padding:11px;border-radius:10px;border:1px solid var(--bd);background:var(--card);color:var(--tx);font-size:15px;margin:6px 0}
+.box{padding:16px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:14px;margin:12px;overflow:hidden}
+.card img{width:100%;display:block;max-height:420px;object-fit:cover}
+.pad{padding:12px}
+.mu{color:var(--mu);font-size:13px}
+nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;background:var(--card);border-top:1px solid var(--bd);display:flex}
+nav button{flex:1;background:none;border:0;padding:12px 0;font-size:13px;color:var(--mu);cursor:pointer}
+nav button.on{color:var(--pr);font-weight:700}
+nav span{display:block;font-size:20px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.big{font-size:28px;font-weight:700}
+.tag{background:var(--ac);color:#fff;border-radius:6px;padding:2px 8px;font-size:12px}
+.hidden{display:none}
+.lock{text-align:center;padding:24px}
+.bar{height:10px;border-radius:5px;background:var(--bd);overflow:hidden;margin-top:6px}
+.bar i{display:block;height:100%;background:var(--ac)}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<section id="login" class="box">
+  <h1 style="font-size:34px;margin-top:50px">🎣 InstaFish</h1>
+  <p class="mu" style="margin-bottom:18px">La red social de los pescadores</p>
+  <input id="em" type="email" placeholder="Correo electrónico">
+  <input id="pw" type="password" placeholder="Contraseña (mín. 6 caracteres)">
+  <p id="msg" class="mu" style="color:#d33"></p>
+  <button class="btn" style="width:100%;margin-top:8px" onclick="auth(false)">Entrar</button>
+  <button class="btn s" style="width:100%;margin-top:8px" onclick="auth(true)">Crear cuenta</button>
+  <p class="mu" id="modo" style="margin-top:14px"></p>
+</section>
+
+<!-- APP -->
+<div id="app" class="hidden">
+  <header><h1>🎣 InstaFish</h1><button class="btn s" onclick="salir()">Salir</button></header>
+
+  <section id="v-feed"><div id="feed"></div></section>
+
+  <section id="v-nuevo" class="box hidden">
+    <h2>Nueva captura</h2>
+    <input id="foto" type="file" accept="image/*">
+    <input id="esp" placeholder="Especie (ej. Dorada)">
+    <input id="lug" placeholder="Lugar">
+    <textarea id="txt" rows="3" placeholder="Cuenta tu captura..."></textarea>
+    <button class="btn" style="width:100%" onclick="publicar()">Publicar</button>
+  </section>
+
+  <section id="v-premium" class="box hidden">
+    <h2>Pesca Pro <span class="tag">PREMIUM</span></h2>
+    <div id="bloqueo" class="card lock">
+      <p style="font-size:40px">🔒</p>
+      <p>Meteorología, mareas, ciclos lunares y los mejores días para pescar.</p>
+      <button class="btn" style="margin-top:14px" onclick="activar()">Activar Premium (demo)</button>
+    </div>
+    <div id="pro" class="hidden">
+      <div class="card pad"><div class="mu">Fase lunar hoy</div><div class="big" id="luna"></div><div class="mu" id="lunaT"></div></div>
+      <div class="card pad"><div class="mu">Hoy (datos de ejemplo)</div>
+        <div class="grid" style="margin-top:8px">
+          <div>🌡️ Aire<div class="big">19°C</div></div><div>🌊 Mar<div class="big">0,8 m</div></div>
+          <div>💨 Viento<div class="big">12 km/h</div></div><div>🌅 Agua<div class="big">17°C</div></div>
+        </div></div>
+      <div class="card pad"><div class="mu">Mareas (aprox., ejemplo)</div><div id="mareas"></div></div>
+      <div class="card pad"><div class="mu">Mejores días (según la luna)</div><div id="dias"></div></div>
+    </div>
+  </section>
+
+  <nav>
+    <button class="on" data-v="feed" onclick="ir('feed')"><span>🏠</span>Inicio</button>
+    <button data-v="nuevo" onclick="ir('nuevo')"><span>➕</span>Publicar</button>
+    <button data-v="premium" onclick="ir('premium')"><span>🌙</span>Pesca Pro</button>
+  </nav>
+</div>
+
+<!-- Firebase (opcional): se carga solo si pegas tu configuración abajo -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script>
+// ====== PASO FIREBASE: pega aquí tus datos (Consola Firebase > Configuración del proyecto) ======
+const FIREBASE_CONFIG = { apiKey: "", authDomain: "", projectId: "", appId: "" };
+// ================================================================================================
+
+const usaFB = !!FIREBASE_CONFIG.apiKey && typeof firebase !== "undefined";
+if (usaFB) firebase.initializeApp(FIREBASE_CONFIG);
+const db = usaFB ? firebase.firestore() : null;
+let unsub = null;
+document.getElementById("modo").textContent = usaFB ? "Conectado a Firebase ✅" : "Modo demo: las cuentas se guardan solo en este navegador.";
+
+const $ = id => document.getElementById(id);
+const ls = {
+  get(k, d){ try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch(e){ return d; } },
+  set(k, v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch(e){} }
+};
+let user = null;
+const demoPosts = [
+  {u:"capitan_luis", e:"Lubina", l:"Tarifa", t:"Mañana espectacular al amanecer 🌅", f:"", m:2},
+  {u:"marta_pesca", e:"Dorada", l:"Cádiz", t:"Primera dorada del año, a la plancha!", f:"", m:5}
+];
+
+async function auth(nuevo){
+  const em = $("em").value.trim(), pw = $("pw").value;
+  $("msg").textContent = "";
+  if (!em || pw.length < 6) { $("msg").textContent = "Escribe un correo y una contraseña de 6+ caracteres."; return; }
+  try {
+    if (usaFB) {
+      const r = nuevo ? await firebase.auth().createUserWithEmailAndPassword(em, pw)
+                      : await firebase.auth().signInWithEmailAndPassword(em, pw);
+      user = r.user.email;
+    } else {
+      const us = ls.get("if_users", {});
+      if (nuevo) { if (us[em]) throw new Error("Ese correo ya existe"); us[em] = pw; ls.set("if_users", us); }
+      else if (us[em] !== pw) throw new Error("Correo o contraseña incorrectos");
+      user = em;
+    }
+    ls.set("if_user", user); entrar();
+  } catch(e){ $("msg").textContent = e.message; }
+}
+function salir(){ if (usaFB) firebase.auth().signOut(); ls.set("if_user", null); user = null; $("app").classList.add("hidden"); $("login").classList.remove("hidden"); }
+function entrar(){ $("login").classList.add("hidden"); $("app").classList.remove("hidden"); ir("feed"); }
+
+function ir(v){
+  ["feed","nuevo","premium"].forEach(x => $("v-"+x).classList.toggle("hidden", x !== v));
+  document.querySelectorAll("nav button").forEach(b => b.classList.toggle("on", b.dataset.v === v));
+  if (v === "feed") pintarFeed(); if (v === "premium") pintarPro();
+}
+
+function esc(s){ return String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+function pintarFeed(){
+  if (usaFB) {
+    if (unsub) unsub();
+    unsub = db.collection("posts").orderBy("c","desc").limit(30).onSnapshot(
+      sn => dibujar(sn.docs.map(d => ({id:d.id, ...d.data()}))),
+      e => { $("feed").innerHTML = '<p class="box mu">No se pudo cargar: ' + esc(e.message) + '</p>'; });
+  } else dibujar([...ls.get("if_posts", []), ...demoPosts]);
+}
+function dibujar(todos){
+  if (!todos.length) { $("feed").innerHTML = '<p class="box mu">Aún no hay capturas. ¡Sube la primera!</p>'; return; }
+  $("feed").innerHTML = todos.map(p => {
+    const lk = p.likes ? p.likes.length : (p.m||0), yo = usaFB && p.likes && p.likes.includes(user);
+    return `<div class="card">
+    ${p.f ? `<img src="${esc(p.f)}" alt="">` : `<div style="height:160px;display:grid;place-items:center;font-size:60px;background:var(--bd)">🐟</div>`}
+    <div class="pad"><b>@${esc(p.u)}</b> · <span class="mu">${esc(p.l||"")}</span> ${p.e ? `<span class="tag">${esc(p.e)}</span>` : ""}
+    <p style="margin:6px 0">${esc(p.t||"")}</p>
+    <button class="btn s" onclick="like('${esc(p.id||"")}', this)" data-n="${lk}">${yo ? "❤️" : "🤍"} ${lk}</button></div></div>`;
+  }).join("");
+}
+function like(id, b){
+  if (usaFB && id) {
+    const yo = b.textContent.includes("❤️"), F = firebase.firestore.FieldValue;
+    db.collection("posts").doc(id).update({likes: yo ? F.arrayRemove(user) : F.arrayUnion(user)});
+  } else { b.dataset.n = +b.dataset.n + 1; b.textContent = "❤️ " + b.dataset.n; }
+}
+
+function reducir(file){
+  return new Promise(ok => {
+    const r = new FileReader();
+    r.onload = () => { const im = new Image(); im.onload = () => {
+      const k = Math.min(1, 700 / im.width), c = document.createElement("canvas");
+      c.width = im.width * k; c.height = im.height * k; c.getContext("2d").drawImage(im, 0, 0, c.width, c.height);
+      ok(c.toDataURL("image/jpeg", .6)); }; im.src = r.result; };
+    r.readAsDataURL(file);
+  });
+}
+async function publicar(){
+  const f = $("foto").files[0];
+  const p = {u:(user||"yo").split("@")[0], e:$("esp").value, l:$("lug").value, t:$("txt").value, f: f ? await reducir(f) : ""};
+  try {
+    if (usaFB) {
+      p.uid = firebase.auth().currentUser.uid; p.likes = []; p.c = firebase.firestore.FieldValue.serverTimestamp();
+      await db.collection("posts").add(p);
+    } else {
+      p.m = 0; const a = ls.get("if_posts", []); a.unshift(p); ls.set("if_posts", a.slice(0, 15));
+    }
+  } catch(e){ alert("No se pudo publicar: " + e.message); return; }
+  ["foto","esp","lug","txt"].forEach(i => $(i).value = "");
+  ir("feed");
+}
+
+function activar(){ ls.set("if_premium", true); pintarPro(); }
+function edadLuna(d){ return (((d.getTime() - Date.UTC(2000,0,6,18,14)) / 864e5) % 29.530588853 + 29.530588853) % 29.530588853; }
+function faseLuna(a){
+  const n = ["🌑 Nueva","🌒 Creciente","🌓 Cuarto creciente","🌔 Gibosa creciente","🌕 Llena","🌖 Gibosa menguante","🌗 Cuarto menguante","🌘 Menguante"];
+  return n[Math.floor(((a / 29.530588853) * 8 + .5)) % 8];
+}
+function pintarPro(){
+  const p = ls.get("if_premium", false);
+  $("bloqueo").classList.toggle("hidden", p); $("pro").classList.toggle("hidden", !p);
+  if (!p) return;
+  const hoy = new Date(), a = edadLuna(hoy), ilu = Math.round((1 - Math.cos(2*Math.PI*a/29.530588853)) / 2 * 100);
+  $("luna").textContent = faseLuna(a); $("lunaT").textContent = "Iluminación: " + ilu + "%";
+  let m = "";
+  for (let h = 0; h < 24; h += 3) { const alt = 1 + Math.sin(2*Math.PI*(h - 3) / 12.42); m += `<div class="mu" style="margin-top:8px">${String(h).padStart(2,"0")}:00 · ${(alt*1.2).toFixed(1)} m</div><div class="bar"><i style="width:${alt*50}%"></i></div>`; }
+  $("mareas").innerHTML = m;
+  let d = "";
+  for (let i = 0; i < 7; i++) {
+    const f = new Date(hoy.getTime() + i*864e5), e = edadLuna(f), cerca = Math.min(e % 14.765, 14.765 - e % 14.765), pts = Math.round((1 - cerca / 7.4) * 100);
+    d += `<div style="margin-top:10px"><b>${f.toLocaleDateString("es-ES",{weekday:"long",day:"numeric"})}</b> <span class="mu">${faseLuna(e)}</span><div class="bar"><i style="width:${pts}%"></i></div></div>`;
+  }
+  $("dias").innerHTML = d;
+}
+
+// Recordar sesión
+if (usaFB) {
+  firebase.auth().onAuthStateChanged(u => {
+    if (u) { user = u.email; entrar(); }
+    else { user = null; if (unsub) unsub(); $("app").classList.add("hidden"); $("login").classList.remove("hidden"); }
+  });
+} else { user = ls.get("if_user", null); if (user) entrar(); }
+</script>
+</body>
+</html>
