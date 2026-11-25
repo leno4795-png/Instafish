@@ -49,11 +49,11 @@ nav span{display:block;font-size:20px}
 
 <!-- APP -->
 <div id="app" class="hidden">
-  <header><h1>🎣 InstaFish</h1><button class="btn s" onclick="salir()">Salir</button></header>
+  <header><h1>🎣 InstaFish</h1><div style="display:flex;gap:8px"><button class="btn s" onclick="lupa()" aria-label="Buscar">🔍</button><button class="btn s" onclick="salir()">Salir</button></div></header>
+  <div id="bbox" class="hidden pad"><input id="bq" placeholder="Buscar pescadores por nombre" oninput="buscar()"><div id="busq"></div></div>
 
   <section id="v-feed">
-    <div class="pad"><input id="bq" placeholder="🔍 Buscar pescadores por nombre" oninput="buscar()"><div id="busq"></div>
-      <div style="display:flex;gap:6px"><button class="btn s" onclick="modo('todas')">Todas</button><button class="btn s" onclick="modo('sig')">Siguiendo</button><button class="btn s" onclick="modo('guard')">Guardados</button></div></div>
+    <div class="pad"><div style="display:flex;gap:6px"><button class="btn s" onclick="modo('todas')">Todas</button><button class="btn s" onclick="modo('sig')">Siguiendo</button><button class="btn s" onclick="modo('guard')">Guardados</button></div></div>
     <div id="feed"></div></section>
 
   <section id="v-nuevo" class="box hidden">
@@ -157,14 +157,15 @@ function dibujar(todos){
     ${p.f ? `<img src="${esc(p.f)}" alt="">` : `<div style="height:160px;display:grid;place-items:center;font-size:60px;background:var(--bd)">🐟</div>`}
     <div class="pad"><b ${p.uid ? `style="cursor:pointer" onclick="verPerfil('${esc(p.uid)}')"` : ""}>@${esc(p.u)}</b> · <span class="mu">${esc(p.l||"")}</span> ${p.e ? `<span class="tag">${esc(p.e)}</span>` : ""}
     <p style="margin:6px 0">${esc(p.t||"")}</p>
-    <button class="btn s" onclick="like('${esc(p.id||"")}', this)" data-n="${lk}">${yo ? "❤️" : "🤍"} ${lk}</button> <button class="btn s" onclick="abrirCom('${esc(p.id||"")}')">💬</button> <button class="btn s" onclick="guardar('${esc(p.id||"")}',this)">${misGuard.has(p.id) ? "📌" : "🔖"}</button>${p.pub ? ` <button class="btn s" onclick="compartir('${esc(p.id)}')">🔗</button>` : ""}<div id="cm-${esc(p.id||"")}"></div></div></div>`;
+    <button class="btn s" onclick="like('${esc(p.id||"")}', this)" data-n="${lk}" data-y="${yo ? 1 : 0}">${pez(yo)} ${lk}</button> <button class="btn s" id="cb-${esc(p.id||"")}" onclick="pintarCom('${esc(p.id||"")}',true)">💬</button> <button class="btn s" onclick="guardar('${esc(p.id||"")}',this)">${misGuard.has(p.id) ? "📌" : "🔖"}</button>${p.pub ? ` <button class="btn s" onclick="compartir('${esc(p.id)}')">🔗</button>` : ""}<div id="cm-${esc(p.id||"")}"></div></div></div>`;
   }).join("");
+  if (usaFB) todos.forEach(p => p.id && pintarCom(p.id));
 }
 function like(id, b){
   if (usaFB && id) {
-    const yo = b.textContent.includes("❤️"), F = firebase.firestore.FieldValue;
+    const yo = b.dataset.y === "1", F = firebase.firestore.FieldValue;
     db.collection("posts").doc(id).update({likes: yo ? F.arrayRemove(user) : F.arrayUnion(user)});
-  } else { b.dataset.n = +b.dataset.n + 1; b.textContent = "❤️ " + b.dataset.n; }
+  } else { b.dataset.n = +b.dataset.n + 1; b.innerHTML = pez(true) + " " + b.dataset.n; }
 }
 
 function reducir(file){
@@ -245,7 +246,7 @@ async function buscar(){
   const q = $("bq").value.trim().toLowerCase();
   if (!q || !usaFB) { $("busq").innerHTML = ""; return; }
   const s = await db.collection("users").where("nl", ">=", q).where("nl", "<=", q + "\uf8ff").limit(10).get();
-  $("busq").innerHTML = s.docs.map(d => `<div class="card pad" style="cursor:pointer" onclick="verPerfil('${d.id}')"><b>${esc(d.data().n)}</b> <span class="mu">🎣 ${esc(d.data().t||"")}</span></div>`).join("") || '<p class="mu box">No encontré a nadie con ese nombre.</p>';
+  $("busq").innerHTML = s.docs.map(d => `<div class="card pad" style="cursor:pointer" onclick="$('bbox').classList.add('hidden');verPerfil('${d.id}')"><b>${esc(d.data().n)}</b> <span class="mu">🎣 ${esc(d.data().t||"")}</span></div>`).join("") || '<p class="mu box">No encontré a nadie con ese nombre.</p>';
 }
 const pid = new URLSearchParams(location.search).get("post");
 if (usaFB && pid) db.collection("posts").doc(pid).get().then(d => { if (d.exists) { const p = d.data(); $("comp").innerHTML = `<div class="card">${p.f ? `<img src="${esc(p.f)}" alt="">` : ""}<div class="pad"><b>@${esc(p.u)}</b> ${p.e ? `<span class="tag">${esc(p.e)}</span>` : ""}<p>${esc(p.t||"")}</p><p class="mu">Crea tu cuenta o entra para seguir a @${esc(p.u)}.</p></div></div>`; } }).catch(() => {});
@@ -261,10 +262,15 @@ async function seguir(id, sigo){
   await b.commit(); verPerfil(id);
 }
 
-async function abrirCom(id){
-  if (!usaFB || !id) return;
-  const s = await db.collection("posts").doc(id).collection("comments").orderBy("c").limit(50).get();
-  $("cm-"+id).innerHTML = s.docs.map(d => `<p class="mu"><b>@${esc(d.data().u)}</b> ${esc(d.data().t)}</p>`).join("") + `<input id="ci-${id}" placeholder="Escribe un comentario"><button class="btn s" onclick="enviarCom('${id}')">Enviar</button>`;
+const pez = on => `<svg width="24" height="15" viewBox="0 0 32 20" style="vertical-align:middle"><path d="M2 10c5-8 15-9 20-2l8-6v16l-8-6c-5 7-15 6-20-2z" fill="${on ? "#f59e0b" : "none"}" stroke="#f59e0b" stroke-width="2" stroke-linejoin="round"/><circle cx="8" cy="9" r="1.6" fill="${on ? "#fff" : "#f59e0b"}"/></svg>`;
+function lupa(){ const b = $("bbox"); b.classList.toggle("hidden"); if (!b.classList.contains("hidden")) $("bq").focus(); }
+async function pintarCom(id, todos){
+  const el = $("cm-" + id); if (!el) return;
+  const s = await db.collection("posts").doc(id).collection("comments").orderBy("c").limit(100).get(), n = s.size;
+  if ($("cb-" + id)) $("cb-" + id).textContent = "💬 " + n;
+  el.innerHTML = s.docs.slice(0, todos ? n : 3).map(d => `<p style="margin:4px 0"><b>@${esc(d.data().u)}</b> ${esc(d.data().t)}</p>`).join("") +
+    (n > 3 && !todos ? `<p class="mu" style="cursor:pointer" onclick="pintarCom('${id}',true)">Ver los ${n} comentarios</p>` : "") +
+    `<input id="ci-${id}" placeholder="Añade un comentario…"><button class="btn s" onclick="enviarCom('${id}')">Enviar</button>`;
 }
 async function enviarCom(id){
   const t = $("ci-"+id).value.trim(); if (!t) return;
