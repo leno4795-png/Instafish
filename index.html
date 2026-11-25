@@ -36,6 +36,7 @@ nav span{display:block;font-size:20px}
 
 <!-- LOGIN -->
 <section id="login" class="box">
+  <div id="comp"></div>
   <h1 style="font-size:34px;margin-top:50px">🎣 InstaFish</h1>
   <p class="mu" style="margin-bottom:18px">La red social de los pescadores</p>
   <input id="em" type="email" placeholder="Correo electrónico">
@@ -50,7 +51,10 @@ nav span{display:block;font-size:20px}
 <div id="app" class="hidden">
   <header><h1>🎣 InstaFish</h1><button class="btn s" onclick="salir()">Salir</button></header>
 
-  <section id="v-feed"><div id="feed"></div></section>
+  <section id="v-feed">
+    <div class="pad"><input id="bq" placeholder="🔍 Buscar pescadores por nombre" oninput="buscar()"><div id="busq"></div>
+      <div style="display:flex;gap:6px"><button class="btn s" onclick="modo('todas')">Todas</button><button class="btn s" onclick="modo('sig')">Siguiendo</button><button class="btn s" onclick="modo('guard')">Guardados</button></div></div>
+    <div id="feed"></div></section>
 
   <section id="v-nuevo" class="box hidden">
     <h2>Nueva captura</h2>
@@ -145,14 +149,6 @@ function ir(v){
 }
 
 function esc(s){ return String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
-function pintarFeed(){
-  if (usaFB) {
-    if (unsub) unsub();
-    unsub = db.collection("posts").orderBy("c","desc").limit(30).onSnapshot(
-      sn => dibujar(sn.docs.map(d => ({id:d.id, ...d.data()}))),
-      e => { $("feed").innerHTML = '<p class="box mu">No se pudo cargar: ' + esc(e.message) + '</p>'; });
-  } else dibujar([...ls.get("if_posts", []), ...demoPosts]);
-}
 function dibujar(todos){
   if (!todos.length) { $("feed").innerHTML = '<p class="box mu">Aún no hay capturas. ¡Sube la primera!</p>'; return; }
   $("feed").innerHTML = todos.map(p => {
@@ -161,7 +157,7 @@ function dibujar(todos){
     ${p.f ? `<img src="${esc(p.f)}" alt="">` : `<div style="height:160px;display:grid;place-items:center;font-size:60px;background:var(--bd)">🐟</div>`}
     <div class="pad"><b ${p.uid ? `style="cursor:pointer" onclick="verPerfil('${esc(p.uid)}')"` : ""}>@${esc(p.u)}</b> · <span class="mu">${esc(p.l||"")}</span> ${p.e ? `<span class="tag">${esc(p.e)}</span>` : ""}
     <p style="margin:6px 0">${esc(p.t||"")}</p>
-    <button class="btn s" onclick="like('${esc(p.id||"")}', this)" data-n="${lk}">${yo ? "❤️" : "🤍"} ${lk}</button> <button class="btn s" onclick="abrirCom('${esc(p.id||"")}')">💬</button><div id="cm-${esc(p.id||"")}"></div></div></div>`;
+    <button class="btn s" onclick="like('${esc(p.id||"")}', this)" data-n="${lk}">${yo ? "❤️" : "🤍"} ${lk}</button> <button class="btn s" onclick="abrirCom('${esc(p.id||"")}')">💬</button> <button class="btn s" onclick="guardar('${esc(p.id||"")}',this)">${misGuard.has(p.id) ? "📌" : "🔖"}</button>${p.pub ? ` <button class="btn s" onclick="compartir('${esc(p.id)}')">🔗</button>` : ""}<div id="cm-${esc(p.id||"")}"></div></div></div>`;
   }).join("");
 }
 function like(id, b){
@@ -186,7 +182,7 @@ async function publicar(){
   const p = {u:(user||"yo").split("@")[0], e:$("esp").value, l:$("lug").value, t:$("txt").value, f: f ? await reducir(f) : ""};
   try {
     if (usaFB) {
-      p.uid = uid(); const pf = await db.collection("users").doc(p.uid).get(); if (pf.exists && pf.data().n) p.u = pf.data().n; p.likes = []; p.c = firebase.firestore.FieldValue.serverTimestamp();
+      p.uid = uid(); const pf = await db.collection("users").doc(p.uid).get(); if (pf.exists && pf.data().n) p.u = pf.data().n; p.pub = !!(pf.exists && pf.data().pub); p.likes = []; p.c = firebase.firestore.FieldValue.serverTimestamp();
       await db.collection("posts").add(p);
     } else {
       p.m = 0; const a = ls.get("if_posts", []); a.unshift(p); ls.set("if_posts", a.slice(0, 15));
@@ -210,12 +206,60 @@ async function verPerfil(id){
   const [u, fs, ps] = await Promise.all([R.get(), R.collection("followers").get(), db.collection("posts").where("uid","==",id).get()]);
   const d = u.exists ? u.data() : {}, sigo = fs.docs.some(x => x.id === uid());
   el.innerHTML = `<h2>${esc(d.n||"Pescador")}</h2><p class="mu">🎣 ${esc(d.t||"Sin especificar")} · ${fs.size} seguidores · ${ps.size} capturas</p><p style="margin:8px 0">${esc(d.b||"")}</p>` +
-  (me ? `<div class="card pad"><b>Editar mi perfil</b><input id="pn" placeholder="Nombre" value="${esc(d.n||"")}"><input id="pt" placeholder="Tipo de pesca (ej. Spinning, surfcasting)" value="${esc(d.t||"")}"><textarea id="pb" rows="3" placeholder="Descripción">${esc(d.b||"")}</textarea><button class="btn" onclick="guardarPerfil()">Guardar</button></div>`
+  (me ? `<div class="card pad"><b>Editar mi perfil</b><input id="pn" placeholder="Nombre" value="${esc(d.n||"")}"><input id="pt" placeholder="Tipo de pesca (ej. Spinning, surfcasting)" value="${esc(d.t||"")}"><textarea id="pb" rows="3" placeholder="Descripción">${esc(d.b||"")}</textarea><label class="mu"><input type="checkbox" id="pp" ${d.pub?"checked":""} style="width:auto"> Perfil público: mis capturas se pueden compartir con un enlace</label><br><button class="btn" onclick="guardarPerfil()">Guardar</button></div>`
         : `<button class="btn${sigo?" s":""}" onclick="seguir('${id}',${sigo})">${sigo?"Siguiendo ✓":"Seguir"}</button>`) +
   `<div class="grid" style="margin-top:12px">${ps.docs.map(x => x.data().f ? `<img src="${esc(x.data().f)}" style="width:100%;border-radius:10px">` : "").join("")}</div>`;
 }
-async function guardarPerfil(){ await db.collection("users").doc(uid()).set({n:$("pn").value.trim(), t:$("pt").value.trim(), b:$("pb").value.trim()}, {merge:true}); verPerfil(); }
-async function seguir(id, sigo){ const r = db.collection("users").doc(id).collection("followers").doc(uid()); await (sigo ? r.delete() : r.set({c:firebase.firestore.FieldValue.serverTimestamp()})); verPerfil(id); }
+let modoFeed = "todas", misGuard = new Set();
+function modo(m){ modoFeed = m; pintarFeed(); }
+async function pintarFeed(){
+  if (!usaFB) { dibujar([...ls.get("if_posts", []), ...demoPosts]); return; }
+  if (unsub) { unsub(); unsub = null; }
+  const me = db.collection("users").doc(uid()), fallo = e => { $("feed").innerHTML = '<p class="box mu">No se pudo cargar: ' + esc(e.message) + '</p>'; };
+  try {
+    misGuard = new Set((await me.collection("saved").get()).docs.map(d => d.id));
+    if (modoFeed === "todas") {
+      unsub = db.collection("posts").orderBy("c","desc").limit(30).onSnapshot(sn => dibujar(sn.docs.map(d => ({id:d.id, ...d.data()}))), fallo);
+    } else if (modoFeed === "guard") {
+      const ps = await Promise.all([...misGuard].map(id => db.collection("posts").doc(id).get()));
+      dibujar(ps.filter(d => d.exists).map(d => ({id:d.id, ...d.data()})));
+    } else {
+      const ids = (await me.collection("following").get()).docs.map(d => d.id).slice(0, 10);
+      if (!ids.length) { dibujar([]); return; }
+      const s = await db.collection("posts").where("uid","in",ids).limit(30).get();
+      dibujar(s.docs.map(d => ({id:d.id, ...d.data()})).sort((a, b) => (b.c ? b.c.seconds : 0) - (a.c ? a.c.seconds : 0)));
+    }
+  } catch(e){ fallo(e); }
+}
+async function guardar(id, b){
+  if (!usaFB || !id) return; const r = db.collection("users").doc(uid()).collection("saved").doc(id);
+  if (misGuard.has(id)) { await r.delete(); misGuard.delete(id); } else { await r.set({c:firebase.firestore.FieldValue.serverTimestamp()}); misGuard.add(id); }
+  if (modoFeed === "guard") pintarFeed(); else b.textContent = misGuard.has(id) ? "📌" : "🔖";
+}
+async function compartir(id){
+  const url = location.origin + location.pathname + "?post=" + id;
+  try { if (navigator.share) { await navigator.share({title:"InstaFish", url}); return; } await navigator.clipboard.writeText(url); alert("Enlace copiado. Cualquiera con el enlace puede ver esta captura."); }
+  catch(e){ prompt("Copia este enlace:", url); }
+}
+async function buscar(){
+  const q = $("bq").value.trim().toLowerCase();
+  if (!q || !usaFB) { $("busq").innerHTML = ""; return; }
+  const s = await db.collection("users").where("nl", ">=", q).where("nl", "<=", q + "\uf8ff").limit(10).get();
+  $("busq").innerHTML = s.docs.map(d => `<div class="card pad" style="cursor:pointer" onclick="verPerfil('${d.id}')"><b>${esc(d.data().n)}</b> <span class="mu">🎣 ${esc(d.data().t||"")}</span></div>`).join("") || '<p class="mu box">No encontré a nadie con ese nombre.</p>';
+}
+const pid = new URLSearchParams(location.search).get("post");
+if (usaFB && pid) db.collection("posts").doc(pid).get().then(d => { if (d.exists) { const p = d.data(); $("comp").innerHTML = `<div class="card">${p.f ? `<img src="${esc(p.f)}" alt="">` : ""}<div class="pad"><b>@${esc(p.u)}</b> ${p.e ? `<span class="tag">${esc(p.e)}</span>` : ""}<p>${esc(p.t||"")}</p><p class="mu">Crea tu cuenta o entra para seguir a @${esc(p.u)}.</p></div></div>`; } }).catch(() => {});
+async function guardarPerfil(){
+  const n = $("pn").value.trim(), pub = $("pp").checked;
+  await db.collection("users").doc(uid()).set({n, nl:n.toLowerCase(), t:$("pt").value.trim(), b:$("pb").value.trim(), pub}, {merge:true});
+  const ps = await db.collection("posts").where("uid","==",uid()).get(), bt = db.batch();
+  ps.docs.forEach(d => bt.update(d.ref, {pub})); await bt.commit(); verPerfil();
+}
+async function seguir(id, sigo){
+  const F = firebase.firestore.FieldValue, t = db.collection("users").doc(id).collection("followers").doc(uid()), m = db.collection("users").doc(uid()).collection("following").doc(id), b = db.batch();
+  if (sigo) { b.delete(t); b.delete(m); } else { b.set(t, {c:F.serverTimestamp()}); b.set(m, {c:F.serverTimestamp()}); }
+  await b.commit(); verPerfil(id);
+}
 
 async function abrirCom(id){
   if (!usaFB || !id) return;
