@@ -161,11 +161,11 @@ function dibujar(todos){
     const lk = p.likes ? p.likes.length : (p.m||0), yo = usaFB && p.likes && p.likes.includes(user);
     return `<div class="card">
     ${p.f ? `<img src="${esc(p.f)}" alt="">` : `<div style="height:160px;display:grid;place-items:center;font-size:60px;background:var(--bd)">🐟</div>`}
-    <div class="pad"><b ${p.uid ? `style="cursor:pointer" onclick="verPerfil('${esc(p.uid)}')"` : ""}>@${esc(p.u)}</b> · <span class="mu">${esc(p.l||"")}</span> ${p.e ? `<span class="tag">${esc(p.e)}</span>` : ""}
+    <div class="pad"><b class="nom" data-u="${esc(p.uid||"")}" ${p.uid ? `style="cursor:pointer" onclick="verPerfil('${esc(p.uid)}')"` : ""}>@${esc(p.u)}</b> · <span class="mu">${esc(p.l||"")}</span> ${p.e ? `<span class="tag">${esc(p.e)}</span>` : ""}
     <p style="margin:6px 0">${esc(p.t||"")}</p>
     <button class="btn s" onclick="like('${esc(p.id||"")}', this)" data-n="${lk}" data-y="${yo ? 1 : 0}">${pez(yo)} ${lk}</button> <button class="btn s" id="cb-${esc(p.id||"")}" onclick="pintarCom('${esc(p.id||"")}',true)">💬</button> <button class="btn s" onclick="guardar('${esc(p.id||"")}',this)">${misGuard.has(p.id) ? "📌" : "🔖"}</button>${p.pub ? ` <button class="btn s" onclick="compartir('${esc(p.id)}')">🔗</button>` : ""}${usaFB && p.uid === uid() ? ` <button class="btn s" onclick="borrarPost('${esc(p.id)}')" aria-label="Borrar">🗑</button>` : ""}<div id="cm-${esc(p.id||"")}"></div></div></div>`;
   }).join("");
-  if (usaFB) todos.forEach(p => p.id && pintarCom(p.id));
+  if (usaFB) { todos.forEach(p => p.id && pintarCom(p.id)); nombres(); }
 }
 function like(id, b){
   if (usaFB && id) {
@@ -309,7 +309,7 @@ async function buscar(){
 const pid = new URLSearchParams(location.search).get("post");
 if (usaFB && pid) db.collection("posts").doc(pid).get().then(d => { if (d.exists) { const p = d.data(); $("comp").innerHTML = `<div class="card">${p.f ? `<img src="${esc(p.f)}" alt="">` : ""}<div class="pad"><b>@${esc(p.u)}</b> ${p.e ? `<span class="tag">${esc(p.e)}</span>` : ""}<p>${esc(p.t||"")}</p><p class="mu">Crea tu cuenta o entra para seguir a @${esc(p.u)}.</p></div></div>`; } }).catch(() => {});
 async function guardarPerfil(){
-  const n = $("pn").value.trim(), pub = $("pp").checked;
+  const n = $("pn").value.trim(), pub = $("pp").checked; delete nomCache[uid()];
   await db.collection("users").doc(uid()).set({n, nl:n.toLowerCase(), t:$("pt").value.trim(), b:$("pb").value.trim(), pub}, {merge:true});
   const ps = await db.collection("posts").where("uid","==",uid()).get(), bt = db.batch();
   ps.docs.forEach(d => bt.update(d.ref, {pub})); await bt.commit(); verPerfil();
@@ -321,6 +321,13 @@ async function seguir(id, sigo){
 }
 
 const pez = on => `<svg width="24" height="15" viewBox="0 0 32 20" style="vertical-align:middle"><path d="M2 10c5-8 15-9 20-2l8-6v16l-8-6c-5 7-15 6-20-2z" fill="${on ? "#f59e0b" : "none"}" stroke="#f59e0b" stroke-width="2" stroke-linejoin="round"/><circle cx="8" cy="9" r="1.6" fill="${on ? "#fff" : "#f59e0b"}"/></svg>`;
+const nomCache = {};
+async function nombres(){
+  const els = [...document.querySelectorAll(".nom")].filter(e => e.dataset.u);
+  const ids = [...new Set(els.map(e => e.dataset.u))].filter(i => !(i in nomCache));
+  await Promise.all(ids.map(async i => { try { const d = await db.collection("users").doc(i).get(); nomCache[i] = d.exists && d.data().n ? d.data().n : ""; } catch(e){ nomCache[i] = ""; } }));
+  els.forEach(e => { if (nomCache[e.dataset.u]) e.textContent = nomCache[e.dataset.u]; });
+}
 function lupa(){ const b = $("bbox"); b.classList.toggle("hidden"); if (!b.classList.contains("hidden")) $("bq").focus(); }
 async function pintarCom(id, todos){
   const el = $("cm-" + id); if (!el) return;
