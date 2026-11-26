@@ -59,10 +59,10 @@ nav span{display:block;font-size:20px}
   <section id="v-nuevo" class="box hidden">
     <h2>Nueva captura</h2>
     <div class="card pad"><b>🌐 Público</b>
-      <input id="foto" type="file" accept="image/*">
+      <p class="mu" style="margin:4px 0">Foto o vídeo (máx. 60 MB)</p><input id="foto" type="file" accept="image/*,video/*">
       <input id="esp" placeholder="Especie (ej. Calamar)">
       <input id="lug" placeholder="Zona (ej. Tarifa)">
-      <textarea id="txt" rows="3" placeholder="Descripción de la captura..."></textarea></div>
+      <textarea id="txt" rows="3" placeholder="Descripción (usa @nombre para etiquetar a alguien)"></textarea></div>
     <div class="card pad"><b>🔒 Privado: solo para tu calendario</b>
       <input id="fec" type="date">
       <input id="egi" placeholder="Color del egi / señuelo">
@@ -70,7 +70,7 @@ nav span{display:block;font-size:20px}
       <textarea id="npv" rows="2" placeholder="Notas privadas (hora, cebo, mar...)"></textarea>
       <p class="mu">El tiempo y la luna de ese día se guardan solos.</p></div>
     <label class="mu"><input type="checkbox" id="pubf" checked style="width:auto"> Publicar también en el inicio</label>
-    <button class="btn" style="width:100%;margin-top:10px" onclick="publicar()">Guardar captura</button>
+    <button class="btn" style="width:100%;margin-top:10px" id="gbtn" onclick="publicar()">Guardar captura</button>
   </section>
 
   <section id="v-perfil" class="box hidden"></section>
@@ -162,9 +162,9 @@ function dibujar(todos){
   $("feed").innerHTML = todos.map(p => {
     const lk = p.likes ? p.likes.length : (p.m||0), yo = usaFB && p.likes && p.likes.includes(user);
     return `<div class="card">
-    ${p.f ? `<img src="${esc(p.f)}" alt="">` : `<div style="height:160px;display:grid;place-items:center;font-size:60px;background:var(--bd)">🐟</div>`}
+    ${p.v ? `<video src="${esc(p.v)}" poster="${esc(p.f)}" controls playsinline preload="metadata" style="width:100%;max-height:420px;background:#000"></video>` : p.f ? `<img src="${esc(p.f)}" alt="">` : `<div style="height:160px;display:grid;place-items:center;font-size:60px;background:var(--bd)">🐟</div>`}
     <div class="pad"><b class="nom" data-u="${esc(p.uid||"")}" ${p.uid ? `style="cursor:pointer" onclick="verPerfil('${esc(p.uid)}')"` : ""}>@${esc(p.u)}</b> · <span class="mu">${esc(p.l||"")}</span> ${p.e ? `<span class="tag">${esc(p.e)}</span>` : ""}
-    <p style="margin:6px 0">${esc(p.t||"")}</p>
+    <p style="margin:6px 0">${fmt(p.t||"")}</p>
     <button class="btn s" onclick="like('${esc(p.id||"")}', this)" data-n="${lk}" data-y="${yo ? 1 : 0}" data-o="${esc(p.uid||"")}">${pez(yo)} ${lk}</button> <button class="btn s" id="cb-${esc(p.id||"")}" onclick="pintarCom('${esc(p.id||"")}',true)">💬</button> <button class="btn s" onclick="guardar('${esc(p.id||"")}',this)">${misGuard.has(p.id) ? "📌" : "🔖"}</button>${p.pub ? ` <button class="btn s" onclick="compartir('${esc(p.id)}')">🔗</button>` : ""}${usaFB && p.uid === uid() ? ` <button class="btn s" onclick="borrarPost('${esc(p.id)}')" aria-label="Borrar">🗑</button>` : ""}<div id="cm-${esc(p.id||"")}"></div></div></div>`;
   }).join("");
   if (usaFB) { todos.forEach(p => p.id && pintarCom(p.id)); nombres(); }
@@ -204,10 +204,18 @@ async function condiciones(d, lugar){
   } catch(e){ return luna; }
 }
 async function publicar(){
+  const b = $("gbtn"); b.disabled = true; b.textContent = "Guardando… (un vídeo puede tardar)";
+  try { await publicar0(); } finally { b.disabled = false; b.textContent = "Guardar captura"; }
+}
+async function publicar0(){
   const f = $("foto").files[0], d = $("fec").value || new Date().toLocaleDateString("sv-SE"), pb = $("pubf").checked, esp = $("esp").value.trim();
   if (!esp) { alert("Pon la especie."); return; }
-  const img = f ? await reducir(f) : "";
-  const p = {u:(user || "yo").split("@")[0], e:esp, l:$("lug").value.trim(), t:$("txt").value.trim(), f:img, d};
+  const esVid = !!f && f.type.startsWith("video/");
+  if (esVid && f.size > 60e6) { alert("El vídeo pesa más de 60 MB. Prueba con uno más corto."); return; }
+  let vid = "", img = "";
+  try { if (esVid) { const r = await subirVid(f); vid = r.v; img = r.p; } else if (f) img = await reducir(f); }
+  catch(e){ alert("No se pudo subir el archivo: " + e.message); return; }
+  const p = {u:(user || "yo").split("@")[0], e:esp, l:$("lug").value.trim(), t:$("txt").value.trim(), f:img, v:vid, d};
   try {
     if (usaFB) {
       p.uid = uid(); const pf = await db.collection("users").doc(p.uid).get();
@@ -215,7 +223,8 @@ async function publicar(){
       p.pub = !!(pf.exists && pf.data().pub); p.likes = []; p.c = firebase.firestore.FieldValue.serverTimestamp();
       const lp = $("lp").value.trim(), k = await condiciones(d, lp);
       const pid = pb ? (await db.collection("posts").add(p)).id : "";
-      await db.collection("users").doc(p.uid).collection("catches").add({d, e:esp, l:lp || p.l, egi:$("egi").value.trim(), t:p.t, n:$("npv").value.trim(), k, f: f ? await reducir(f, 300) : "", pid});
+      if (pid) menciones(p.t, pid);
+      await db.collection("users").doc(p.uid).collection("catches").add({d, e:esp, l:lp || p.l, egi:$("egi").value.trim(), t:p.t, n:$("npv").value.trim(), k, f: esVid ? img : (f ? await reducir(f, 300) : ""), pid});
     } else if (pb) { p.m = 0; const a = ls.get("if_posts", []); a.unshift(p); ls.set("if_posts", a.slice(0, 15)); }
   } catch(e){ alert("No se pudo guardar: " + e.message); return; }
   ["foto","esp","lug","txt","fec","egi","lp","npv"].forEach(i => $(i).value = "");
@@ -257,14 +266,14 @@ async function verPerfil(id, tab){
   const tb = (k, ic) => `<button onclick="verPerfil('${id}','${k}')" style="background:none;border:0;padding:10px 22px;font-size:20px;color:var(--tx);cursor:pointer;border-bottom:2px solid ${pTab === k ? "var(--pr)" : "transparent"}">${ic}</button>`;
   const st = (n, t, k) => `<div style="cursor:pointer" onclick="listaGente('${id}','${k}')"><b style="font-size:22px">${n}</b><div class="mu">${t}</div></div>`;
   el.innerHTML = `<input type="file" id="avi" accept="image/*" class="hidden" onchange="cambiarAvatar(this)"><input type="file" id="his" accept="image/*" class="hidden" onchange="subirHist(this)">
-  <div style="display:flex;justify-content:space-between;align-items:center;gap:12px"><div><h2 style="font-size:28px">${esc(d.n||"Pescador")}</h2><p class="mu">🎣 ${esc(d.t||"Sin especificar")}</p></div>${av}</div>
+  <div style="display:flex;justify-content:space-between;align-items:center;gap:12px"><div><h2 style="font-size:28px">${esc(d.n||"Pescador")}</h2><p class="mu">${d.nh ? "@" + esc(d.nh) + " · " : ""}🎣 ${esc(d.t||"Sin especificar")}</p></div>${av}</div>
   <div style="display:flex;gap:26px;margin:14px 0">${st(nf,"Siguiendo","following")}${st(fs.size,"Seguidores","followers")}${st(likes,"Me gusta","")}</div>
-  <p style="margin:8px 0">${esc(d.b||"")}</p>` +
+  <p style="margin:8px 0">${fmt(d.b||"")}</p>` +
   (me ? `<button class="btn s" onclick="$('ep').classList.toggle('hidden')">✏️ Editar perfil</button>
     <div id="ep" class="card pad hidden"><input id="pn" placeholder="Nombre" value="${esc(d.n||"")}"><input id="pt" placeholder="Tipo de pesca (ej. Spinning, surfcasting)" value="${esc(d.t||"")}"><textarea id="pb" rows="3" placeholder="Descripción">${esc(d.b||"")}</textarea><label class="mu"><input type="checkbox" id="pp" ${d.pub?"checked":""} style="width:auto"> Perfil público: mis capturas se pueden compartir con un enlace</label><br><button class="btn s" onclick="$('avi').click()">📷 Cambiar foto</button> <button class="btn" onclick="guardarPerfil()">Guardar</button></div>`
       : `<button class="btn${sigo?" s":""}" onclick="seguir('${id}',${sigo})">${sigo?"Siguiendo ✓":"Seguir"}</button>`) +
   `<div style="display:flex;justify-content:space-around;border-bottom:1px solid var(--bd);margin:14px -16px 0">${tb("grid","▦")}${me ? tb("sav","🔖") + tb("lik", pez(true)) : ""}</div>
-  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:2px;margin:0 -16px">${lista.map(p => `<div style="position:relative;aspect-ratio:3/4;background:var(--bd);cursor:pointer" onclick="abrirPost('${p.id}')">${p.f ? `<img src="${esc(p.f)}" style="width:100%;height:100%;object-fit:cover">` : `<div style="display:grid;place-items:center;height:100%;font-size:34px">🐟</div>`}<span style="position:absolute;left:6px;bottom:4px;color:#fff;font-size:13px;text-shadow:0 1px 3px #000">${pez(true)} ${p.likes ? p.likes.length : 0}</span></div>`).join("")}</div>` +
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:2px;margin:0 -16px">${lista.map(p => `<div style="position:relative;aspect-ratio:3/4;background:var(--bd);cursor:pointer" onclick="abrirPost('${p.id}')">${p.f ? `<img src="${esc(p.f)}" style="width:100%;height:100%;object-fit:cover">` : `<div style="display:grid;place-items:center;height:100%;font-size:34px">🐟</div>`}${p.v ? '<span style="position:absolute;right:6px;top:4px;color:#fff;text-shadow:0 1px 3px #000">▶</span>' : ""}<span style="position:absolute;left:6px;bottom:4px;color:#fff;font-size:13px;text-shadow:0 1px 3px #000">${pez(true)} ${p.likes ? p.likes.length : 0}</span></div>`).join("")}</div>` +
   (lista.length ? "" : '<p class="mu" style="margin-top:16px">Aquí aún no hay capturas.</p>');
 }
 async function abrirPost(id){
@@ -314,7 +323,9 @@ const pid = new URLSearchParams(location.search).get("post");
 if (usaFB && pid) db.collection("posts").doc(pid).get().then(d => { if (d.exists) { const p = d.data(); $("comp").innerHTML = `<div class="card">${p.f ? `<img src="${esc(p.f)}" alt="">` : ""}<div class="pad"><b>@${esc(p.u)}</b> ${p.e ? `<span class="tag">${esc(p.e)}</span>` : ""}<p>${esc(p.t||"")}</p><p class="mu">Crea tu cuenta o entra para seguir a @${esc(p.u)}.</p></div></div>`; } }).catch(() => {});
 async function guardarPerfil(){
   const n = $("pn").value.trim(), pub = $("pp").checked; delete nomCache[uid()];
-  await db.collection("users").doc(uid()).set({n, nl:n.toLowerCase(), t:$("pt").value.trim(), b:$("pb").value.trim(), pub}, {merge:true});
+  const h = hn(n);
+  if (h) { const q = await db.collection("users").where("nh","==",h).limit(2).get(); if (q.docs.some(x => x.id !== uid())) { alert("Ese nombre ya lo usa otra persona. Prueba con otro."); return; } }
+  await db.collection("users").doc(uid()).set({n, nl:n.toLowerCase(), nh:h, t:$("pt").value.trim(), b:$("pb").value.trim(), pub}, {merge:true});
   const ps = await db.collection("posts").where("uid","==",uid()).get(), bt = db.batch();
   ps.docs.forEach(d => bt.update(d.ref, {pub})); await bt.commit(); verPerfil();
 }
@@ -371,25 +382,45 @@ function escucharNotifs(){
     $("nb").textContent = n; $("nb").classList.toggle("hidden", !n);
   }, () => {});
 }
-const TXT = {like:"🐟 dio me gusta a tu captura", follow:"👤 empezó a seguirte", comment:"💬 comentó tu captura", share:"🔗 compartió tu captura"};
+const TXT = {like:"🐟 dio me gusta a tu captura", follow:"👤 empezó a seguirte", comment:"💬 comentó tu captura", share:"🔗 compartió tu captura", mention:"🏷️ te etiquetó"};
 function verNotifs(){
   ls.set("if_visto", Date.now()); $("nb").classList.add("hidden");
   mostrar("<h3>Notificaciones</h3>" + (notifs.map(x => `<div class="card pad" style="cursor:pointer" onclick="cerrar();${x.t === "follow" ? `verPerfil('${esc(x.from)}')` : `abrirPost('${esc(x.pid)}')`}"><b>${esc(x.fn || "Alguien")}</b> ${TXT[x.t] || ""}<div class="mu">${x.c ? new Date(x.c.seconds * 1000).toLocaleString("es-ES") : ""}</div></div>`).join("") || '<p class="mu">Aún no tienes notificaciones.</p>'));
+}
+const hn = n => n.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9_]/g, "");
+const fmt = t => esc(t).replace(/@([\p{L}\p{N}_]+)/gu, (m, h) => `<a style="color:var(--pr);cursor:pointer" onclick="irHandle('${hn(h)}')">@${h}</a>`);
+async function irHandle(h){
+  const s = await db.collection("users").where("nh","==",h).limit(1).get();
+  if (s.empty) { alert("No encuentro a @" + h); return; }
+  cerrar(); verPerfil(s.docs[0].id);
+}
+async function menciones(t, pid){
+  const hs = [...new Set((t.match(/@[\p{L}\p{N}_]+/gu) || []).map(x => hn(x.slice(1))))].filter(Boolean).slice(0, 5);
+  for (const h of hs) { const s = await db.collection("users").where("nh","==",h).limit(1).get(); if (!s.empty) notif(s.docs[0].id, "mention", pid); }
+}
+const CLD = "y1mtuxeg", PRE = "Instafish";
+async function subirVid(f){
+  const fd = new FormData(); fd.append("file", f); fd.append("upload_preset", PRE);
+  const r = await fetch(`https://api.cloudinary.com/v1_1/${CLD}/video/upload`, {method:"POST", body:fd});
+  const j = await r.json();
+  if (!j.secure_url) throw new Error((j.error && j.error.message) || "error desconocido");
+  return {v: j.secure_url.replace("/upload/", "/upload/f_mp4,vc_h264,q_auto/").replace(/\.[a-z0-9]+$/i, ".mp4"), p: j.secure_url.replace("/upload/", "/upload/so_0,w_700/").replace(/\.[a-z0-9]+$/i, ".jpg")};
 }
 function lupa(){ const b = $("bbox"); b.classList.toggle("hidden"); if (!b.classList.contains("hidden")) $("bq").focus(); }
 async function pintarCom(id, todos){
   const el = $("cm-" + id); if (!el) return;
   const s = await db.collection("posts").doc(id).collection("comments").orderBy("c").limit(100).get(), n = s.size;
   if ($("cb-" + id)) $("cb-" + id).textContent = "💬 " + n;
-  el.innerHTML = s.docs.slice(0, todos ? n : 3).map(d => `<p style="margin:4px 0"><b>@${esc(d.data().u)}</b> ${esc(d.data().t)}</p>`).join("") +
+  el.innerHTML = s.docs.slice(0, todos ? n : 3).map(d => `<p style="margin:4px 0"><b>@${esc(d.data().u)}</b> ${fmt(d.data().t)}</p>`).join("") +
     (n > 3 && !todos ? `<p class="mu" style="cursor:pointer" onclick="pintarCom('${id}',true)">Ver los ${n} comentarios</p>` : "") +
-    `<input id="ci-${id}" placeholder="Añade un comentario…"><button class="btn s" onclick="enviarCom('${id}')">Enviar</button>`;
+    `<input id="ci-${id}" placeholder="Añade un comentario… (@nombre para etiquetar)"><button class="btn s" onclick="enviarCom('${id}')">Enviar</button>`;
 }
 async function enviarCom(id){
   const t = $("ci-"+id).value.trim(); if (!t) return;
   await db.collection("posts").doc(id).collection("comments").add({t, u:user.split("@")[0], uid:uid(), c:firebase.firestore.FieldValue.serverTimestamp()});
   pintarCom(id, true);
   db.collection("posts").doc(id).get().then(d => d.exists && notif(d.data().uid, "comment", id)).catch(() => {});
+  menciones(t, id);
 }
 
 const LIM = {spinning:[25,1.5], surfcasting:[30,2.5], bote:[20,1], rio:[30,99], mosca:[18,99]};
