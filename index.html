@@ -706,7 +706,7 @@ async function cargarPro(){
 
 // ===== Mapa de pesca único: viento, olas y marea hora a hora =====
 let SPMAP = null, SPMK = null, SPPT = null, SPD = null, SPH = 0, SPDIA = 0, SPNOW = 0, SPUD = "kn", SPLIST = [], SPCAPAS = null, SPSAT = false;
-let SPG = null, SPGTOK = 0, SPMOD = "ecmwf_ifs025", SPCAP = "ambos", SPLAY = null, SPTM = null;
+let SPG = null, SPGTOK = 0, SPMOD = "ecmwf_ifs025", SPCAP = "ambos", SPLAY = null, SPTM = null, SPGRID = false;
 const MODS = [["ecmwf_ifs025", "ECMWF"], ["gfs_seamless", "GFS"], ["icon_seamless", "ICON"]];
 const UD = {kn: ["nudos", v => Math.round(v)], ms: ["m/s", v => (v * 0.5144).toFixed(1).replace(".", ",")], kmh: ["km/h", v => Math.round(v * 1.852)]};
 const fv = v => v == null ? "—" : UD[SPUD][1](v);
@@ -723,9 +723,13 @@ function cargaLeaflet(){
 }
 function ctlPuntos(){
   const el = $("spctl"); if (!el) return;
-  el.innerHTML = '<span class="mu">Modelo:</span>' + MODS.map(m => `<button class="btn ${SPMOD === m[0] ? "" : "s"}" onclick="setMod('${m[0]}')" ${bs}>${m[1]}</button>`).join("") +
-    '<span class="mu" style="margin-left:6px">Ver:</span>' + [["ambos", "Todo"], ["viento", "💨 Viento"], ["olas", "🌊 Olas"]].map(c => `<button class="btn ${SPCAP === c[0] ? "" : "s"}" onclick="setCap('${c[0]}')" ${bs}>${c[1]}</button>`).join("");
+  const fila = (t, h) => `<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:8px"><span class="mu" style="min-width:74px">${t}</span>${h}</div>`;
+  el.innerHTML = fila("Modelo:", MODS.map(m => `<button class="btn ${SPMOD === m[0] ? "" : "s"}" onclick="setMod('${m[0]}')" ${bs}>${m[1]}</button>`).join("")) +
+    fila("Unidad:", Object.keys(UD).map(u => `<button class="btn ${SPUD === u ? "" : "s"}" data-u="${u}" onclick="setUd('${u}')" ${bs}>${UD[u][0]}</button>`).join("")) +
+    fila("Flechas de toda la zona:", `<button class="btn ${SPGRID ? "" : "s"}" onclick="setRej(true)" ${bs}>Sí</button><button class="btn ${SPGRID ? "s" : ""}" onclick="setRej(false)" ${bs}>No</button>`) +
+    (SPGRID ? fila("Mostrar:", [["ambos", "Todo"], ["viento", "💨 Viento"], ["olas", "🌊 Olas"]].map(c => `<button class="btn ${SPCAP === c[0] ? "" : "s"}" onclick="setCap('${c[0]}')" ${bs}>${c[1]}</button>`).join("")) : "");
 }
+function setRej(v){ SPGRID = v; ls.set("if_rej", v); ctlPuntos(); rejilla(); }
 function chipsPuntos(){
   const el = $("spchips"); if (!el) return;
   el.innerHTML = SPLIST.map((p, i) => `<button class="btn s" onclick="irPunto(${i})" ${bs}>⭐ ${esc(p.n)}</button>`).join("") +
@@ -734,7 +738,7 @@ function chipsPuntos(){
 function setMod(m){ SPMOD = m; ls.set("if_mod", m); ctlPuntos(); rejilla(); if (SPPT) cargarPunto(true); }
 function setCap(c){ SPCAP = c; ctlPuntos(); pintaRejilla(); }
 async function iniPuntos(z){
-  SPUD = ls.get("if_ud", "kn"); SPLIST = ls.get("if_sp", []); SPSAT = ls.get("if_sat", false); SPMOD = ls.get("if_mod", "ecmwf_ifs025");
+  SPUD = ls.get("if_ud", "kn"); SPLIST = ls.get("if_sp", []); SPSAT = ls.get("if_sat", false); SPMOD = ls.get("if_mod", "ecmwf_ifs025"); SPGRID = ls.get("if_rej", false);
   ctlPuntos(); chipsPuntos();
   try { await cargaLeaflet(); } catch(e){ if ($("spmap")) $("spmap").innerHTML = '<p class="mu box">No se pudo cargar el mapa. Revisa tu conexión.</p>'; return; }
   if (!$("spmap")) return;
@@ -755,6 +759,7 @@ async function iniPuntos(z){
 // flechas de viento y olas por toda la zona que se ve en el mapa
 async function rejilla(){
   if (!SPMAP) return;
+  if (!SPGRID) { SPGTOK++; SPG = null; pintaRejilla(); return; }
   const tok = ++SPGTOK, bd = SPMAP.getBounds();
   if (SPMAP.getZoom() < 7) { SPG = null; pintaRejilla(); return; }
   const nx = 4, ny = 5, la = [], lo = [], N = bd.getNorth(), S = bd.getSouth(), W = bd.getWest(), E = bd.getEast();
@@ -850,22 +855,56 @@ async function cargarPunto(conservar){
     const ahora = new Date(Date.now() + (w.utc_offset_seconds || 0) * 1000).toISOString().slice(0, 13);
     let k = H.time.findIndex(t => t.slice(0, 13) >= ahora); if (k < 0) k = 0;
     SPNOW = k; SPH = conservar ? Math.min(antes, n - 1) : k; SPDIA = Math.floor(SPH / 24);
-    const gu = Object.keys(UD).map(u => `<button class="btn s" data-u="${u}" onclick="setUd('${u}')" style="padding:6px 10px;font-size:13px">${UD[u][0]}</button>`).join("");
     const dias = [0, 1, 2].filter(d => d * 24 < n).map(d => `<button class="btn s" data-d="${d}" onclick="setDia(${d})" ${bs}>${ndia(d)}</button>`).join("");
     $("sptime").innerHTML = `<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">${dias}<b id="sptl" style="margin-left:auto;font-size:16px"></b></div>` +
       `<input type="range" id="sprg" min="0" max="${n - 1}" value="${SPH}" oninput="setHora(+this.value)" style="width:100%;margin:6px 0">`;
-    P.innerHTML = '<div id="sphead" style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"></div>' +
-      '<div id="sphora" class="card pad" style="margin:8px 0"></div><div class="mu" style="font-size:13px;margin-top:4px">Marea</div><div id="spmarea"></div><div class="mu" style="font-size:13px;margin-top:8px">Viento del día</div><div id="spgraf"></div><div class="mu" style="font-size:13px;margin-top:8px">Hora a hora</div><div id="sptab" style="max-height:340px;overflow:auto;margin-top:4px"></div>' +
-      `<div style="display:flex;gap:6px;align-items:center;margin-top:10px;flex-wrap:wrap"><span class="mu">Unidad:</span>${gu}</div>` +
+    P.innerHTML = '<div id="sphead" style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"></div><div id="spres"></div>' +
+      '<details style="margin-top:6px"><summary class="mu" style="cursor:pointer;font-size:15px;padding:6px 0">📊 Detalle para expertos: gráficas y hora a hora</summary>' +
+      '<div id="sphora" class="card pad" style="margin:8px 0"></div><div class="mu" style="font-size:13px;margin-top:4px">Marea</div><div id="spmarea"></div><div class="mu" style="font-size:13px;margin-top:8px">Viento del día</div><div id="spgraf"></div><div class="mu" style="font-size:13px;margin-top:8px">Hora a hora</div><div id="sptab" style="max-height:340px;overflow:auto;margin-top:4px"></div></details>' +
       '<p class="mu" style="font-size:12px;margin-top:8px">Datos: Open-Meteo. Son estimaciones de modelos: cerca de la costa el viento y el oleaje reales pueden variar. La marea es del modelo global (orientativa; en el Mediterráneo es pequeña).</p>';
     cabeceraPunto(); pintaHora(); contrasteModelos({lat: p.lat, lon: p.lon});
   } catch(e){ P.innerHTML = '<p class="mu box">No se pudo cargar ese punto. Revisa tu conexión.</p>'; }
 }
 function iconoPunto(i){
-  const D = SPD, d = D.d[i] || 0;
+  const D = SPD, d = D.d[i] || 0, v = D.v[i], wh = D.wh[i], c = colViento(v || 0);
+  const ola = wh == null ? "" : `<div style="position:absolute;left:48px;top:-12px;white-space:nowrap;background:#1e86d6;color:#fff;border-radius:8px;padding:2px 8px;font:700 14px Barlow,sans-serif;border:1px solid #082230">🌊 ${num1(wh)} m</div>`;
   return L.divIcon({className: "", iconSize: [0, 0], iconAnchor: [0, 0], html:
-    `<div style="position:absolute;left:-9px;top:-9px;width:18px;height:18px;border-radius:50%;border:3px solid #fff;background:#f08a24;box-sizing:border-box;box-shadow:0 0 0 3px rgba(240,138,36,.4)"></div>`});
+    '<div style="position:absolute;left:-42px;top:-42px;width:84px;height:84px;border-radius:50%;border:2px solid rgba(255,255,255,.8);background:rgba(8,34,48,.3);box-sizing:border-box"></div>' +
+    `<svg width="64" height="64" viewBox="0 0 60 60" style="position:absolute;left:-32px;top:-32px;transform:rotate(${d + 180}deg);pointer-events:none"><path d="M30 2 L43 32 L30 26 L17 32Z" fill="${c}" stroke="#082230" stroke-width="2.5" stroke-linejoin="round"/></svg>` +
+    '<div style="position:absolute;left:-9px;top:-9px;width:18px;height:18px;border-radius:50%;border:3px solid #fff;background:#f08a24;box-sizing:border-box"></div>' +
+    `<div style="position:absolute;left:-44px;top:46px;width:88px;text-align:center;background:${c};color:#082230;border-radius:8px;padding:2px 0;font:700 14px Barlow,sans-serif;border:1px solid #082230">💨 ${fv(v)} ${UD[SPUD][0]}</div>` + ola});
 }
+const TIPOS = {spinning: "spinning", surfcasting: "surfcasting", bote: "pesca desde bote", rio: "río / agua dulce", mosca: "mosca"};
+function nivel(k){
+  const D = SPD, L = LIM[ls.get("if_tipo", "spinning")] || LIM.spinning, v = (D.v[k] || 0) * 1.852, g = (D.g[k] || D.v[k] || 0) * 1.852, w = D.wh[k] || 0;
+  if (v > L[0] * 1.3 || w > L[1] * 1.3 || g > 55) return 2;
+  return (v > L[0] || w > L[1]) ? 1 : 0;
+}
+function mareaTxt(i){
+  const td = SPD.td; if (td[i] == null) return "Sin datos de marea";
+  const sube = td[i + 1] != null ? td[i + 1] > td[i] : null; let e = null;
+  for (let k = i + 1; k < td.length - 1; k++) {
+    if (td[k] == null || td[k - 1] == null || td[k + 1] == null) continue;
+    if (td[k] > td[k - 1] && td[k] >= td[k + 1]) { e = [k, "pleamar"]; break; }
+    if (td[k] < td[k - 1] && td[k] <= td[k + 1]) { e = [k, "bajamar"]; break; }
+  }
+  return (sube == null ? "Marea" : sube ? "Marea subiendo" : "Marea bajando") + (e ? ` · ${e[1]} a las ${SPD.t[e[0]].slice(11, 16)}` : "");
+}
+function resumen(i){
+  const D = SPD, t = ls.get("if_tipo", "spinning"), L = LIM[t] || LIM.spinning, niv = nivel(i), v = D.v[i], wh = D.wh[i];
+  const col = ["#2bc0d0", "#f5c542", "#e5484d"][niv], tit = ["🟢 Buen momento para pescar", "🟡 Se puede pescar, con precaución", "🔴 Mejor esperar"][niv];
+  const kv = v == null ? "Sin datos" : v < 1 ? "Calma" : v <= 5 ? "Viento flojo" : v <= 10 ? "Viento suave" : v <= 16 ? "Viento moderado" : v <= 22 ? "Viento fuerte" : "Viento muy fuerte";
+  const mar = wh == null ? "Sin datos de oleaje aquí" : wh < .3 ? "Mar en calma" : wh < .8 ? "Mar tranquila" : wh < 1.5 ? "Olas moderadas" : wh < 2.5 ? "Mar movida" : "Mar muy gruesa";
+  const rz = []; if ((v || 0) * 1.852 > L[0]) rz.push("el viento pasa de lo recomendado"); if ((wh || 0) > L[1]) rz.push("hay más ola de la recomendada");
+  const a = SPDIA * 24, b = Math.min(a + 24, D.t.length); let bi = -1, bl = 0, ci = -1, cl = 0;
+  for (let j = a; j < b; j++) { if (nivel(j) === 0) { if (ci < 0) ci = j; cl++; if (cl > bl) { bl = cl; bi = ci; } } else { ci = -1; cl = 0; } }
+  const mejor = bl >= b - a ? "🕐 Todo el día está bien para este tipo de pesca" : bl ? `🕐 Mejor rato de este día: <b>${D.t[bi].slice(11, 16)} – ${bi + bl < D.t.length ? D.t[bi + bl].slice(11, 16) : "24:00"}</b>` : "🕐 Este día no hay buenos ratos para este tipo de pesca";
+  return `<div class="card pad" style="border-left:5px solid ${col};margin:8px 0"><div style="font-size:19px;font-weight:700">${tit}</div>` +
+    (rz.length ? `<div class="mu" style="font-size:13px">Ahora ${rz.join(" y ")} para ${TIPOS[t] || t}.</div>` : "") +
+    `<div style="display:grid;gap:6px;margin:10px 0;font-size:16px"><div>💨 <b>${kv}</b>${v == null ? "" : ` del ${rumbo(D.d[i])} · ${fv(v)} ${UD[SPUD][0]}`}</div><div>🌊 <b>${mar}</b>${wh == null ? "" : ` · ${num1(wh)} m`}</div><div>↕ <b>${mareaTxt(i)}</b></div></div>` +
+    `<div style="font-size:15px">${mejor}</div><div class="mu" style="font-size:13px;margin-top:8px">Tipo de pesca: <select onchange="cambiaTipo(this.value)" style="width:auto;display:inline-block">${Object.keys(TIPOS).map(k => `<option value="${k}"${k === t ? " selected" : ""}>${TIPOS[k]}</option>`).join("")}</select></div></div>`;
+}
+function cambiaTipo(t){ ls.set("if_tipo", t); if ($("tipo")) $("tipo").value = t; pintaHora(); }
 function colV(v){ return v == null ? "transparent" : v <= 8 ? "rgba(43,192,208,.16)" : v <= 16 ? "rgba(245,197,66,.2)" : "rgba(229,72,77,.25)"; }
 function lineas(D, a, b, i){
   // marea: curva del día + próximas pleamar y bajamar
@@ -898,8 +937,10 @@ function pintaHora(){
   document.querySelectorAll("#spcard [data-d]").forEach(b => { b.className = "btn" + (+b.dataset.d === SPDIA ? "" : " s"); });
   document.querySelectorAll("#spcard [data-u]").forEach(b => { b.className = "btn" + (b.dataset.u === SPUD ? "" : " s"); });
   if ($("sprg") && +$("sprg").value !== i) $("sprg").value = i;
+  if ($("spres")) $("spres").innerHTML = resumen(i);
   if (SPMAP && SPPT) {
     if (!SPMK) SPMK = L.marker([SPPT.lat, SPPT.lon], {icon: iconoPunto(i), interactive: false, keyboard: false, zIndexOffset: 1000}).addTo(SPMAP);
+    else SPMK.setIcon(iconoPunto(i));
   }
   pintaRejilla();
   const a = SPDIA * 24, b = Math.min(a + 24, D.t.length), c = b - a;
@@ -941,11 +982,11 @@ function pintarMapa(z){
   const caja = $("pronos").firstElementChild; if (!caja) return;
   caja.insertAdjacentHTML("afterend",
     '<div class="card pad" id="spcard"><div class="mu">🗺 Mapa de pesca · viento, olas y marea hora a hora</div>' +
-    '<div id="spctl" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:8px 0"></div>' +
+    '<details style="margin:8px 0"><summary class="mu" style="cursor:pointer">⚙ Más opciones (modelo, unidades, flechas de la zona)</summary><div id="spctl"></div></details>' +
     '<div id="spchips" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px"></div>' +
     '<div id="sptime"></div>' +
     '<div id="spmap" style="height:430px;border-radius:12px;position:relative;z-index:0;isolation:isolate;background:#0a2a38"></div>' +
-    '<p class="mu" style="font-size:12px;margin:6px 0 0"><span style="color:#8be28a">➤</span> Flecha verde: hacia dónde sopla el viento (número = fuerza). <span style="color:#3aa0ff">➤</span> Flecha azul: hacia dónde van las olas (altura en metros). Arrastra la barra para cambiar la hora, haz zoom y toca el mapa para elegir tu punto.</p>' +
+    '<p class="mu" style="font-size:12px;margin:6px 0 0">Toca el mapa para elegir tu punto y arrastra la barra para cambiar la hora. La flecha marca hacia dónde sopla el viento y el rótulo azul es la altura de las olas.</p>' +
     '<div id="sppanel" style="margin-top:10px"></div></div>' +
     '<div class="card pad" id="cmcard"><div class="mu">Contraste de modelos en el punto elegido · viento en nudos</div><div id="cmod" class="mu" style="margin-top:8px">Cargando…</div></div>');
   iniPuntos(z);
