@@ -704,6 +704,158 @@ async function cargarPro(){
   } catch(e){ $("pronos").innerHTML = '<p class="mu box">No se pudo cargar el pronóstico. Revisa tu conexión.</p>'; }
 }
 
+// ===== Mis puntos de pesca: mapa ampliable y pronóstico hora a hora =====
+let SPMAP = null, SPMK = null, SPPT = null, SPD = null, SPH = 0, SPDIA = 0, SPNOW = 0, SPUD = "kn", SPLIST = [], SPCAPAS = null, SPSAT = false;
+const UD = {kn: ["nudos", v => Math.round(v)], ms: ["m/s", v => (v * 0.5144).toFixed(1).replace(".", ",")], kmh: ["km/h", v => Math.round(v * 1.852)]};
+const fv = v => v == null ? "—" : UD[SPUD][1](v);
+const num1 = v => v == null ? "—" : v.toFixed(1).replace(".", ",");
+const ndia = k => k === 0 ? "Hoy" : k === 1 ? "Mañana" : new Date(SPD.t[k * 24].slice(0, 10) + "T12:00").toLocaleDateString("es-ES", {weekday: "short", day: "numeric"});
+function cargaLeaflet(){
+  if (window.L) return Promise.resolve();
+  return new Promise((ok, ko) => {
+    const c = document.createElement("link"); c.rel = "stylesheet"; c.href = "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css"; document.head.appendChild(c);
+    const s = document.createElement("script"); s.src = "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"; s.onload = ok; s.onerror = ko; document.head.appendChild(s);
+  });
+}
+function chipsPuntos(){
+  const el = $("spchips"); if (!el) return;
+  el.innerHTML = SPLIST.map((p, i) => `<button class="btn s" onclick="irPunto(${i})" style="padding:6px 10px;font-size:14px">⭐ ${esc(p.n)}</button>`).join("") +
+    `<button class="btn s" onclick="miUbicacion()" style="padding:6px 10px;font-size:14px">📍 Mi ubicación</button><button class="btn s" onclick="cambiaSat()" style="padding:6px 10px;font-size:14px">${SPSAT ? "🗺 Mapa" : "🛰 Satélite"}</button>` +
+    (SPLIST.length ? "" : '<p class="mu" style="width:100%;font-size:13px">Toca el mapa para elegir un punto. Haz zoom para afinar y guárdalo con ⭐.</p>');
+}
+async function iniPuntos(z){
+  SPUD = ls.get("if_ud", "kn"); SPLIST = ls.get("if_sp", []); SPSAT = ls.get("if_sat", false);
+  chipsPuntos();
+  try { await cargaLeaflet(); } catch(e){ if ($("spmap")) $("spmap").innerHTML = '<p class="mu box">No se pudo cargar el mapa. Revisa tu conexión.</p>'; return; }
+  if (!$("spmap")) return;
+  if (SPMAP) { try { SPMAP.remove(); } catch(e){} SPMAP = null; }
+  SPMK = null;
+  SPMAP = L.map("spmap").setView([z.lat, z.lon], 11);
+  SPCAPAS = {
+    mapa: L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {maxZoom: 19, attribution: "© OpenStreetMap"}),
+    sat: L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", {maxZoom: 18, attribution: "Imagery © Esri"})
+  };
+  SPCAPAS[SPSAT ? "sat" : "mapa"].addTo(SPMAP);
+  SPMAP.on("click", e => elegirPunto(e.latlng.lat, e.latlng.lng));
+  setTimeout(() => { if (SPMAP) SPMAP.invalidateSize(); }, 250);
+  elegirPunto(z.lat, z.lon, z.n, false);
+}
+function cambiaSat(){
+  if (!SPMAP) return;
+  SPMAP.removeLayer(SPCAPAS[SPSAT ? "sat" : "mapa"]); SPSAT = !SPSAT; ls.set("if_sat", SPSAT);
+  SPCAPAS[SPSAT ? "sat" : "mapa"].addTo(SPMAP); chipsPuntos();
+}
+function miUbicacion(){
+  if (!navigator.geolocation) { alert("Tu navegador no permite saber dónde estás."); return; }
+  navigator.geolocation.getCurrentPosition(p => elegirPunto(p.coords.latitude, p.coords.longitude, "Mi ubicación"), () => alert("No pude saber dónde estás. Revisa el permiso de ubicación."), {timeout: 10000});
+}
+function irPunto(i){
+  const p = SPLIST[i]; if (!p || !SPMAP) return;
+  SPMAP.flyTo([p.lat, p.lon], 13, {duration: .6}); elegirPunto(p.lat, p.lon, p.n, false, i);
+}
+function elegirPunto(lat, lon, n, vuelo, i){
+  if (!SPMAP) return;
+  SPPT = {lat, lon, n: n || "Punto elegido", i: i == null ? null : i};
+  if (vuelo !== false) SPMAP.flyTo([lat, lon], Math.max(SPMAP.getZoom(), 12), {duration: .6});
+  if (SPMK) { SPMAP.removeLayer(SPMK); SPMK = null; }
+  cargarPunto();
+}
+function cabeceraPunto(){
+  const p = SPPT, el = $("sphead"); if (!p || !el) return;
+  el.innerHTML = `<div><b>${esc(p.n)}</b><div class="mu" style="font-size:12px">${p.lat.toFixed(4)}, ${p.lon.toFixed(4)}</div></div><div>` +
+    (p.i != null ? '<button class="btn s" onclick="borrarPunto()">🗑 Borrar</button>' : '<button class="btn" onclick="guardarPunto()">⭐ Guardar punto</button>') + "</div>";
+}
+function guardarPunto(){
+  if (!SPPT) return;
+  if (SPLIST.length >= 20) { alert("Puedes guardar hasta 20 puntos. Borra alguno."); return; }
+  const n = (prompt("Nombre de este punto de pesca (ej. Escollera norte)", SPPT.n === "Punto elegido" || SPPT.n === "Mi ubicación" ? "" : SPPT.n) || "").trim().slice(0, 40);
+  if (!n) return;
+  SPLIST.push({n, lat: +SPPT.lat.toFixed(5), lon: +SPPT.lon.toFixed(5)}); ls.set("if_sp", SPLIST);
+  SPPT.n = n; SPPT.i = SPLIST.length - 1; chipsPuntos(); cabeceraPunto();
+}
+function borrarPunto(){
+  if (!SPPT || SPPT.i == null || !confirm("¿Borrar el punto «" + SPPT.n + "»?")) return;
+  SPLIST.splice(SPPT.i, 1); ls.set("if_sp", SPLIST); SPPT.i = null; chipsPuntos(); cabeceraPunto();
+}
+async function cargarPunto(){
+  const p = SPPT, P = $("sppanel"); if (!P || !p) return;
+  P.innerHTML = '<p class="mu">Cargando el tiempo de este punto…</p>';
+  try {
+    const q = `latitude=${p.lat}&longitude=${p.lon}&timezone=auto&forecast_days=3`;
+    const [w, m] = await Promise.all([
+      fetch(`https://api.open-meteo.com/v1/forecast?${q}&hourly=wind_speed_10m,wind_gusts_10m,wind_direction_10m&wind_speed_unit=kn`).then(r => r.json()),
+      fetch(`https://marine-api.open-meteo.com/v1/marine?${q}&hourly=wave_height,wave_period,wave_direction,sea_level_height_msl,sea_surface_temperature`).then(r => r.json()).catch(() => ({}))]);
+    if (p !== SPPT || !$("sppanel")) return;
+    const H = w.hourly, M = (m && m.hourly) || {}, n = H.time.length, mi = {};
+    (M.time || []).forEach((t, k) => mi[t] = k);
+    const mar = k => H.time.map(t => (M[k] && mi[t] != null) ? M[k][mi[t]] : null);
+    SPD = {t: H.time, v: H.wind_speed_10m, g: H.wind_gusts_10m, d: H.wind_direction_10m, wh: mar("wave_height"), wp: mar("wave_period"), wd: mar("wave_direction"), td: mar("sea_level_height_msl"), st: mar("sea_surface_temperature")};
+    const ahora = new Date(Date.now() + (w.utc_offset_seconds || 0) * 1000).toISOString().slice(0, 13);
+    let k = H.time.findIndex(t => t.slice(0, 13) >= ahora); if (k < 0) k = 0;
+    SPNOW = k; SPH = k; SPDIA = Math.floor(k / 24);
+    const gu = Object.keys(UD).map(u => `<button class="btn s" data-u="${u}" onclick="setUd('${u}')" style="padding:6px 10px;font-size:13px">${UD[u][0]}</button>`).join("");
+    const dias = [0, 1, 2].filter(d => d * 24 < n).map(d => `<button class="btn s" data-d="${d}" onclick="setDia(${d})" style="padding:8px 12px;font-size:14px">${ndia(d)}</button>`).join("");
+    P.innerHTML = '<div id="sphead" style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"></div>' +
+      `<div style="display:flex;gap:6px;flex-wrap:wrap;margin:10px 0">${dias}</div>` +
+      `<input type="range" id="sprg" min="0" max="${n - 1}" value="${SPH}" oninput="setHora(+this.value)" style="width:100%"><div class="mu" style="font-size:12px">Arrastra para cambiar la hora y ver las flechas en el mapa.</div>` +
+      '<div id="sphora" class="card pad" style="margin:8px 0"></div><div id="spgraf"></div><div id="sptab" style="max-height:340px;overflow:auto;margin-top:6px"></div>' +
+      `<div style="display:flex;gap:6px;align-items:center;margin-top:10px;flex-wrap:wrap"><span class="mu">Unidad:</span>${gu}</div>` +
+      '<p class="mu" style="font-size:12px;margin-top:8px">Datos: Open-Meteo (modelos meteorológicos y marinos). Son estimaciones: en un punto concreto de costa el oleaje y el viento reales pueden variar.</p>';
+    cabeceraPunto(); pintaHora();
+  } catch(e){ P.innerHTML = '<p class="mu box">No se pudo cargar ese punto. Revisa tu conexión.</p>'; }
+}
+function iconoPunto(i){
+  const D = SPD, d = D.d[i] || 0, w = D.wd[i];
+  const ola = D.wh[i] == null ? "" : `<div style="position:absolute;left:34px;top:-14px;white-space:nowrap;background:#1e86d6;color:#fff;border-radius:8px;padding:2px 8px;font:700 13px Barlow,sans-serif">${num1(D.wh[i])} m${D.wp[i] == null ? "" : " " + Math.round(D.wp[i]) + " s"}</div>`;
+  return L.divIcon({className: "", iconSize: [0, 0], iconAnchor: [0, 0], html:
+    `<div style="position:absolute;left:-9px;top:-9px;width:18px;height:18px;border-radius:50%;border:3px solid #fff;background:#f08a24;box-sizing:border-box"></div>` +
+    `<svg width="60" height="60" viewBox="0 0 60 60" style="position:absolute;left:-30px;top:-30px;transform:rotate(${d + 180}deg);pointer-events:none"><path d="M30 2 L43 32 L30 26 L17 32Z" fill="#7bd96b" stroke="#082230" stroke-width="2" stroke-linejoin="round"/></svg>` +
+    `<div style="position:absolute;left:-34px;top:30px;width:68px;text-align:center;background:#7bd96b;color:#082230;border-radius:8px;padding:2px 0;font:700 13px Barlow,sans-serif">${fv(D.v[i])} ${UD[SPUD][0]}</div>` + ola});
+}
+function colV(v){ return v == null ? "transparent" : v <= 8 ? "rgba(43,192,208,.16)" : v <= 16 ? "rgba(245,197,66,.2)" : "rgba(229,72,77,.25)"; }
+function pintaHora(){
+  const D = SPD, i = SPH; if (!D || !$("sphora")) return;
+  SPDIA = Math.floor(i / 24);
+  const dt = new Date(D.t[i].slice(0, 10) + "T12:00");
+  $("sphora").innerHTML = `<div class="mu">${dt.toLocaleDateString("es-ES", {weekday: "long", day: "numeric"})} · <b style="color:var(--tx);font-size:16px">${D.t[i].slice(11, 16)}</b></div>` +
+    '<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:6px">' +
+    `<div>💨 Viento<div class="big">${rumbo(D.d[i])} ${fv(D.v[i])}</div><span class="mu" style="font-size:12px">${UD[SPUD][0]} · rachas ${fv(D.g[i])}</span></div>` +
+    `<div>🌊 Oleaje<div class="big">${D.wh[i] == null ? "—" : num1(D.wh[i]) + " m"}</div><span class="mu" style="font-size:12px">${D.wp[i] == null ? "sin datos" : Math.round(D.wp[i]) + " s · de " + rumbo(D.wd[i])}</span></div>` +
+    `<div>↕ Marea<div class="big">${D.td[i] == null ? "—" : num1(D.td[i]) + " m"}</div><span class="mu" style="font-size:12px">agua ${D.st[i] == null ? "—" : Math.round(D.st[i]) + " °C"}</span></div></div>`;
+  document.querySelectorAll("#sppanel [data-d]").forEach(b => { b.className = "btn" + (+b.dataset.d === SPDIA ? "" : " s"); });
+  document.querySelectorAll("#sppanel [data-u]").forEach(b => { b.className = "btn" + (b.dataset.u === SPUD ? "" : " s"); });
+  if ($("sprg") && +$("sprg").value !== i) $("sprg").value = i;
+  // flechas en el mapa
+  if (SPMAP && SPPT) {
+    if (!SPMK) SPMK = L.marker([SPPT.lat, SPPT.lon], {icon: iconoPunto(i), interactive: false, keyboard: false}).addTo(SPMAP);
+    else SPMK.setIcon(iconoPunto(i));
+  }
+  // gráfica del día
+  const a = SPDIA * 24, b = Math.min(a + 24, D.t.length), c = b - a;
+  const mx = Math.max(10, ...D.g.slice(a, b).filter(v => v != null), ...D.v.slice(a, b).filter(v => v != null));
+  const X = j => 6 + j / Math.max(1, c - 1) * 318, Y = v => 78 - (v || 0) / mx * 68;
+  const ln = arr => arr.slice(a, b).map((v, j) => (j ? "L" : "M") + X(j).toFixed(1) + " " + Y(v).toFixed(1)).join(" ");
+  const js = i - a;
+  $("spgraf").innerHTML = `<svg viewBox="0 0 330 100" width="100%" role="img" aria-label="Viento y rachas del día"><line x1="6" y1="78" x2="324" y2="78" stroke="var(--bd)"/>` +
+    `<path d="${ln(D.g)}" fill="none" stroke="#f08a24" stroke-width="2" stroke-dasharray="4 3"/><path d="${ln(D.v)}" fill="none" stroke="#2bc0d0" stroke-width="2.5"/>` +
+    `<line x1="${X(js).toFixed(1)}" y1="4" x2="${X(js).toFixed(1)}" y2="78" stroke="#f08a24" stroke-width="1.5"/><circle cx="${X(js).toFixed(1)}" cy="${Y(D.v[i]).toFixed(1)}" r="4.5" fill="#f08a24" stroke="#082230" stroke-width="2"/>` +
+    [0, 6, 12, 18].filter(h => h < c).map(h => `<text x="${X(h)}" y="94" fill="#94b3c0" font-size="10" text-anchor="${h ? "middle" : "start"}">${String(h).padStart(2, "0")}h</text>`).join("") +
+    `<text x="324" y="12" fill="#94b3c0" font-size="10" text-anchor="end">máx ${fv(mx)} ${UD[SPUD][0]}</text></svg><div class="mu" style="font-size:12px"><span style="color:#2bc0d0">━</span> viento · <span style="color:#f08a24">╍</span> rachas</div>`;
+  // tabla hora a hora
+  const cols = "grid-template-columns:.9fr .5fr 1fr 1fr 1fr 1fr";
+  let h = `<div style="display:grid;${cols};gap:4px;font-size:12px;font-weight:700;color:var(--mu);padding:4px 6px;position:sticky;top:0;background:var(--card)"><span>Hora</span><span></span><span>Viento</span><span>Rachas</span><span>Oleaje</span><span>Marea</span></div>`;
+  for (let k = a; k < b; k++) {
+    h += `<div id="spr${k}" onclick="setHora(${k})" style="display:grid;${cols};gap:4px;align-items:center;padding:6px;border-top:1px solid var(--bd);font-size:14px;cursor:pointer;background:${k === i ? "rgba(240,138,36,.22)" : colV(D.v[k])};${k === i ? "border-left:3px solid #f08a24;" : ""}">` +
+      `<span class="mu">${D.t[k].slice(11, 16)}</span><span style="display:inline-block;transform:rotate(${(D.d[k] || 0) + 180}deg);text-align:center">↑</span>` +
+      `<b>${fv(D.v[k])}</b><span>${fv(D.g[k])}</span><span>${D.wh[k] == null ? "—" : num1(D.wh[k]) + " m"}</span><span>${D.td[k] == null ? "—" : num1(D.td[k])}</span></div>`;
+  }
+  const T = $("sptab"); T.innerHTML = h;
+  const r = $("spr" + i); if (r) T.scrollTop += r.getBoundingClientRect().top - T.getBoundingClientRect().top - 70;
+}
+function setHora(i){ SPH = Math.max(0, Math.min(SPD.t.length - 1, i)); pintaHora(); }
+function setDia(d){ setHora(d * 24 + (d === 0 && SPNOW < 24 ? SPNOW : 7)); }
+function setUd(u){ SPUD = u; ls.set("if_ud", u); pintaHora(); }
+
 // ===== Mapa tipo Windy (gratis, embebido) + contraste de modelos =====
 let WCAPA = "wind", WMOD = "ecmwf";
 const RUMBOS = ["N","NE","E","SE","S","SO","O","NO"];
@@ -718,6 +870,7 @@ function pintarMapa(z){
   const caja = $("pronos").firstElementChild; if (!caja) return;
   const bt = (k, v, t) => `<button class="btn s" data-w="${v}" onclick="setWindy('${k}','${v}')" style="padding:8px 12px;font-size:14px">${t}</button>`;
   caja.insertAdjacentHTML("afterend",
+    '<div class="card pad" id="spcard"><div class="mu">📍 Mis puntos de pesca · toca el mapa y mira el tiempo hora a hora</div><div id="spchips" style="display:flex;gap:6px;flex-wrap:wrap;margin:8px 0"></div><div id="spmap" style="height:340px;border-radius:12px;position:relative;z-index:0;isolation:isolate;background:#0a2a38"></div><div id="sppanel" style="margin-top:10px"></div></div>' +
     '<div class="card pad" id="mapcard"><div class="mu">Mapa del tiempo en movimiento</div>' +
     '<div style="display:flex;gap:6px;flex-wrap:wrap;margin:8px 0">' + bt("o", "wind", "💨 Viento") + bt("o", "waves", "🌊 Oleaje") + bt("o", "rain", "🌧️ Lluvia") + bt("o", "pressure", "🧭 Presión") + '</div>' +
     '<div style="display:flex;gap:6px;align-items:center;margin-bottom:8px"><span class="mu">Modelo:</span>' + bt("m", "ecmwf", "ECMWF") + bt("m", "gfs", "GFS") + '</div>' +
@@ -726,6 +879,7 @@ function pintarMapa(z){
     '<div class="card pad" id="cmcard"><div class="mu">Contraste de modelos · viento en nudos</div><div id="cmod" class="mu" style="margin-top:8px">Cargando…</div></div>');
   $("wif").src = urlWindy(z); marcarWindy();
   contrasteModelos(z);
+  iniPuntos(z);
 }
 async function contrasteModelos(z){
   const M = [["ecmwf_ifs025", "ECMWF"], ["gfs_seamless", "GFS"], ["icon_seamless", "ICON"]];
