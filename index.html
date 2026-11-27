@@ -30,6 +30,25 @@ nav span{display:block;font-size:20px}
 .lock{text-align:center;padding:24px}
 .bar{height:10px;border-radius:5px;background:var(--bd);overflow:hidden;margin-top:6px}
 .bar i{display:block;height:100%;background:var(--ac)}
+#ftop{display:none}
+body.fv{padding-bottom:0}
+body.fv header{display:none}
+body.fv #ftop{display:flex;position:fixed;top:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;z-index:6;justify-content:center;gap:20px;padding:14px;background:linear-gradient(#000b,transparent);align-items:center}
+#ftop span{color:#fff;opacity:.7;font-size:17px;cursor:pointer;text-shadow:0 1px 3px #000;padding-bottom:3px}
+#ftop span.on{opacity:1;font-weight:700;border-bottom:2px solid #fff}
+#ftop .lp{position:absolute;right:16px;opacity:1;font-size:20px;border:0}
+body.fv #bbox{position:fixed;top:50px;left:50%;transform:translateX(-50%);width:100%;max-width:480px;z-index:7;background:var(--card)}
+#feed{height:calc(100dvh - 56px);overflow-y:auto;scroll-snap-type:y mandatory}
+.vp{position:relative;height:calc(100dvh - 56px);scroll-snap-align:start;background:#000;overflow:hidden}
+.vp img,.vp video{width:100%;height:100%;object-fit:contain}
+.vp::after{content:"";position:absolute;left:0;right:0;bottom:0;height:40%;background:linear-gradient(transparent,#000a);pointer-events:none}
+.rc{position:absolute;right:10px;bottom:24px;display:flex;flex-direction:column;align-items:center;gap:14px;color:#fff;z-index:2}
+.rc button{background:none;border:0;color:#fff;font-size:28px;cursor:pointer;text-shadow:0 1px 3px #000;text-align:center;padding:0}
+.rc small{display:block;font-size:13px}
+.rc svg{width:40px;height:25px}
+.av{width:46px;height:46px;border-radius:50%;overflow:hidden;border:2px solid #fff;background:var(--bd);display:grid;place-items:center;font-size:22px}
+.mas{position:absolute;left:11px;bottom:-10px;width:24px;height:24px;border-radius:50%;background:var(--ac);color:#fff;font-size:18px;line-height:24px;text-align:center;cursor:pointer}
+.inf{position:absolute;left:14px;right:80px;bottom:18px;color:#fff;text-shadow:0 1px 4px #000;z-index:2}
 </style>
 </head>
 <body>
@@ -49,12 +68,11 @@ nav span{display:block;font-size:20px}
 
 <!-- APP -->
 <div id="app" class="hidden">
-  <header><h1>🎣 InstaFish</h1><div style="display:flex;gap:8px"><button class="btn s" onclick="verNotifs()" aria-label="Notificaciones">🔔<b id="nb" class="tag hidden" style="margin-left:4px">0</b></button><button class="btn s" onclick="lupa()" aria-label="Buscar">🔍</button><button class="btn s" onclick="salir()">Salir</button></div></header>
+  <header><h1>🎣 InstaFish</h1><div style="display:flex;gap:8px"><button class="btn s" onclick="lupa()" aria-label="Buscar">🔍</button><button class="btn s" onclick="salir()">Salir</button></div></header>
+  <div id="ftop"><span id="t-sig" onclick="modo('sig')">Siguiendo</span><span id="t-todas" class="on" onclick="modo('todas')">Para ti</span><span class="lp" onclick="lupa()">🔍</span></div>
   <div id="bbox" class="hidden pad"><input id="bq" placeholder="Buscar pescadores por nombre" oninput="buscar()"><div id="busq"></div></div>
 
-  <section id="v-feed">
-    <div class="pad"><div style="display:flex;gap:6px"><button class="btn s" onclick="modo('todas')">Todas</button><button class="btn s" onclick="modo('sig')">Siguiendo</button><button class="btn s" onclick="modo('guard')">Guardados</button></div></div>
-    <div id="feed"></div></section>
+  <section id="v-feed"><div id="feed"></div></section>
 
   <section id="v-nuevo" class="box hidden">
     <h2>Nueva captura</h2>
@@ -95,8 +113,9 @@ nav span{display:block;font-size:20px}
 
   <nav>
     <button class="on" data-v="feed" onclick="ir('feed')"><span>🏠</span>Inicio</button>
-    <button data-v="nuevo" onclick="ir('nuevo')"><span>➕</span>Publicar</button>
     <button data-v="premium" onclick="ir('premium')"><span>🌙</span>Pesca Pro</button>
+    <button data-v="nuevo" onclick="ir('nuevo')"><span style="background:var(--pr);color:#fff;border-radius:10px;padding:0 16px;font-size:22px;line-height:30px">+</span></button>
+    <button onclick="verNotifs()"><span>🔔<b id="nb" class="tag hidden" style="margin-left:2px">0</b></span>Avisos</button>
     <button data-v="perfil" onclick="verPerfil()"><span>👤</span>Perfil</button>
   </nav>
 </div>
@@ -150,7 +169,7 @@ async function auth(nuevo){
 function salir(){ if (usaFB) firebase.auth().signOut(); ls.set("if_user", null); user = null; $("app").classList.add("hidden"); $("login").classList.remove("hidden"); }
 function entrar(){ $("login").classList.add("hidden"); $("app").classList.remove("hidden"); if (usaFB) escucharNotifs(); ir("feed"); }
 
-function ir(v, quieto){
+function ir(v, quieto){ document.body.classList.toggle("fv", v === "feed");
   ["feed","nuevo","premium","perfil"].forEach(x => $("v-"+x).classList.toggle("hidden", x !== v));
   document.querySelectorAll("nav button").forEach(b => b.classList.toggle("on", b.dataset.v === v));
   if (v === "feed" && !quieto) pintarFeed(); if (v === "nuevo" && !$("fec").value) $("fec").value = new Date().toLocaleDateString("sv-SE"); if (v === "premium") pintarPro();
@@ -158,15 +177,20 @@ function ir(v, quieto){
 
 function esc(s){ return String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
 function dibujar(todos){
-  if (!todos.length) { $("feed").innerHTML = '<p class="box mu">Aún no hay capturas. ¡Sube la primera!</p>'; return; }
+  if (!todos.length) { $("feed").innerHTML = '<p class="box mu" style="padding-top:70px">Aún no hay capturas. ¡Sube la primera!</p>'; return; }
   $("feed").innerHTML = todos.map(p => {
-    const lk = p.likes ? p.likes.length : (p.m||0), yo = usaFB && p.likes && p.likes.includes(user);
-    return `<div class="card">
-    ${p.v ? `<video src="${esc(p.v)}" poster="${esc(p.f)}" controls playsinline preload="metadata" style="width:100%;max-height:420px;background:#000"></video>` : p.f ? `<img src="${esc(p.f)}" alt="">` : `<div style="height:160px;display:grid;place-items:center;font-size:60px;background:var(--bd)">🐟</div>`}
-    <div class="pad"><b class="nom" data-u="${esc(p.uid||"")}" ${p.uid ? `style="cursor:pointer" onclick="verPerfil('${esc(p.uid)}')"` : ""}>@${esc(p.u)}</b> · <span class="mu">${esc(p.l||"")}</span> ${p.e ? `<span class="tag">${esc(p.e)}</span>` : ""}
-    <p style="margin:6px 0">${fmt(p.t||"")}</p>
-    <button class="btn s" onclick="like('${esc(p.id||"")}', this)" data-n="${lk}" data-y="${yo ? 1 : 0}" data-o="${esc(p.uid||"")}">${pez(yo)} ${lk}</button> <button class="btn s" id="cb-${esc(p.id||"")}" onclick="pintarCom('${esc(p.id||"")}',true)">💬</button> <button class="btn s" onclick="guardar('${esc(p.id||"")}',this)">${misGuard.has(p.id) ? "📌" : "🔖"}</button>${p.pub ? ` <button class="btn s" onclick="compartir('${esc(p.id)}')">🔗</button>` : ""}${usaFB && p.uid === uid() ? ` <button class="btn s" onclick="borrarPost('${esc(p.id)}')" aria-label="Borrar">🗑</button>` : ""}<div id="cm-${esc(p.id||"")}"></div></div></div>`;
+    const lk = p.likes ? p.likes.length : (p.m || 0), yo = usaFB && p.likes && p.likes.includes(user), id = esc(p.id || ""), u = esc(p.uid || ""), mio = usaFB && p.uid === uid();
+    const media = p.v ? `<video src="${esc(p.v)}" poster="${esc(p.f)}" controls playsinline loop muted preload="metadata"></video>` : p.f ? `<img src="${esc(p.f)}" alt="">` : `<div style="height:100%;display:grid;place-items:center;font-size:90px">🐟</div>`;
+    return `<div class="vp">${media}<div class="rc">
+      ${u ? `<div style="position:relative;margin-bottom:10px"><div class="av" data-u="${u}" onclick="verPerfil('${u}')" style="cursor:pointer">🎣</div>${mio || misSig.has(p.uid) ? "" : `<span class="mas" onclick="seguir('${u}',false,true);this.remove()">+</span>`}</div>` : ""}
+      <button onclick="like('${id}',this)" data-n="${lk}" data-y="${yo ? 1 : 0}" data-o="${u}">${pez(yo)}<small>${lk}</small></button>
+      <button onclick="verCom('${id}')">💬<small id="cn-${id}">0</small></button>
+      <button onclick="guardar('${id}',this)">${misGuard.has(p.id) ? "📌" : "🔖"}</button>
+      ${p.pub ? `<button onclick="compartir('${id}')">🔗</button>` : ""}
+      ${mio ? `<button onclick="borrarPost('${id}')" aria-label="Borrar">🗑</button>` : ""}
+    </div><div class="inf"><b class="nom" data-u="${u}" ${u ? `style="cursor:pointer;font-size:18px" onclick="verPerfil('${u}')"` : 'style="font-size:18px"'}>@${esc(p.u)}</b> ${p.e ? `<span class="tag">${esc(p.e)}</span>` : ""}<div style="margin-top:4px">${fmt(p.t || "")}</div><div style="font-size:12px;opacity:.85;margin-top:2px">${p.l ? "📍 " + esc(p.l) : ""}</div></div></div>`;
   }).join("");
+  document.querySelectorAll(".vp").forEach(x => io.observe(x));
   if (usaFB) { todos.forEach(p => p.id && pintarCom(p.id)); nombres(); }
 }
 function like(id, b){
@@ -280,15 +304,16 @@ async function abrirPost(id){
   const d = await db.collection("posts").doc(id).get(); if (!d.exists) return;
   if (unsub) { unsub(); unsub = null; } ir("feed", true); dibujar([{id:d.id, ...d.data()}]);
 }
-async function cambiarAvatar(inp){ const f = inp.files[0]; if (!f) return; await db.collection("users").doc(uid()).set({av: await reducir(f, 200)}, {merge:true}); verPerfil(); }
-let modoFeed = "todas", misGuard = new Set();
-function modo(m){ modoFeed = m; pintarFeed(); }
+async function cambiarAvatar(inp){ const f = inp.files[0]; if (!f) return; delete nomCache[uid()]; await db.collection("users").doc(uid()).set({av: await reducir(f, 200)}, {merge:true}); verPerfil(); }
+let modoFeed = "todas", misGuard = new Set(), misSig = new Set();
+function modo(m){ modoFeed = m; document.querySelectorAll("#ftop span[id]").forEach(x => x.classList.toggle("on", x.id === "t-" + m)); pintarFeed(); }
 async function pintarFeed(){
   if (!usaFB) { dibujar([...ls.get("if_posts", []), ...demoPosts]); return; }
   if (unsub) { unsub(); unsub = null; }
   const me = db.collection("users").doc(uid()), fallo = e => { $("feed").innerHTML = '<p class="box mu">No se pudo cargar: ' + esc(e.message) + '</p>'; };
   try {
     misGuard = new Set((await me.collection("saved").get()).docs.map(d => d.id));
+    misSig = new Set((await me.collection("following").get()).docs.map(d => d.id));
     if (modoFeed === "todas") {
       unsub = db.collection("posts").orderBy("c","desc").limit(30).onSnapshot(sn => dibujar(sn.docs.map(d => ({id:d.id, ...d.data()}))), fallo);
     } else if (modoFeed === "guard") {
@@ -329,19 +354,22 @@ async function guardarPerfil(){
   const ps = await db.collection("posts").where("uid","==",uid()).get(), bt = db.batch();
   ps.docs.forEach(d => bt.update(d.ref, {pub})); await bt.commit(); verPerfil();
 }
-async function seguir(id, sigo){
+async function seguir(id, sigo, quieto){
   const F = firebase.firestore.FieldValue, t = db.collection("users").doc(id).collection("followers").doc(uid()), m = db.collection("users").doc(uid()).collection("following").doc(id), b = db.batch();
   if (sigo) { b.delete(t); b.delete(m); } else { b.set(t, {c:F.serverTimestamp()}); b.set(m, {c:F.serverTimestamp()}); }
-  b.set(db.collection("users").doc(uid()), {nf: F.increment(sigo ? -1 : 1)}, {merge:true}); await b.commit(); if (!sigo) notif(id, "follow", ""); verPerfil(id);
+  b.set(db.collection("users").doc(uid()), {nf: F.increment(sigo ? -1 : 1)}, {merge:true}); await b.commit(); if (!sigo) notif(id, "follow", ""); if (!quieto) verPerfil(id);
 }
 
 const pez = on => `<svg width="24" height="15" viewBox="0 0 32 20" style="vertical-align:middle"><path d="M2 10c5-8 15-9 20-2l8-6v16l-8-6c-5 7-15 6-20-2z" fill="${on ? "#f59e0b" : "none"}" stroke="#f59e0b" stroke-width="2" stroke-linejoin="round"/><circle cx="8" cy="9" r="1.6" fill="${on ? "#fff" : "#f59e0b"}"/></svg>`;
-const nomCache = {};
+const nomCache = {}, avCache = {};
+const io = new IntersectionObserver(es => es.forEach(e => { const v = e.target.querySelector("video"); if (!v) return; if (e.isIntersecting) { v.muted = true; v.play().catch(() => {}); } else v.pause(); }), {threshold:.7});
+function verCom(id){ if (!usaFB || !id) return; mostrar('<div id="cm-' + id + '"></div>'); pintarCom(id, true); }
 async function nombres(){
   const els = [...document.querySelectorAll(".nom")].filter(e => e.dataset.u);
   const ids = [...new Set(els.map(e => e.dataset.u))].filter(i => !(i in nomCache));
-  await Promise.all(ids.map(async i => { try { const d = await db.collection("users").doc(i).get(); nomCache[i] = d.exists && d.data().n ? d.data().n : ""; } catch(e){ nomCache[i] = ""; } }));
+  await Promise.all(ids.map(async i => { try { const d = await db.collection("users").doc(i).get(); nomCache[i] = d.exists && d.data().n ? d.data().n : ""; avCache[i] = (d.exists && d.data().av) || ""; } catch(e){ nomCache[i] = ""; } }));
   els.forEach(e => { if (nomCache[e.dataset.u]) e.textContent = nomCache[e.dataset.u]; });
+  document.querySelectorAll(".av[data-u]").forEach(e => { const a = avCache[e.dataset.u]; if (a) e.innerHTML = '<img src="' + esc(a) + '" style="width:100%;height:100%;object-fit:cover">'; });
 }
 const mostrar = h => { $("ovc").innerHTML = h; $("ov").classList.remove("hidden"); };
 const cerrar = () => $("ov").classList.add("hidden");
@@ -408,9 +436,10 @@ async function subirVid(f){
 }
 function lupa(){ const b = $("bbox"); b.classList.toggle("hidden"); if (!b.classList.contains("hidden")) $("bq").focus(); }
 async function pintarCom(id, todos){
-  const el = $("cm-" + id); if (!el) return;
+  const el = $("cm-" + id);
   const s = await db.collection("posts").doc(id).collection("comments").orderBy("c").limit(100).get(), n = s.size;
-  if ($("cb-" + id)) $("cb-" + id).textContent = "💬 " + n;
+  if ($("cn-" + id)) $("cn-" + id).textContent = n;
+  if (!el) return;
   el.innerHTML = s.docs.slice(0, todos ? n : 3).map(d => `<p style="margin:4px 0"><b>@${esc(d.data().u)}</b> ${fmt(d.data().t)}</p>`).join("") +
     (n > 3 && !todos ? `<p class="mu" style="cursor:pointer" onclick="pintarCom('${id}',true)">Ver los ${n} comentarios</p>` : "") +
     `<input id="ci-${id}" placeholder="Añade un comentario… (@nombre para etiquetar)"><button class="btn s" onclick="enviarCom('${id}')">Enviar</button>`;
