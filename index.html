@@ -77,7 +77,7 @@ body.fv #bbox{position:fixed;top:50px;left:50%;transform:translateX(-50%);width:
 
 <!-- APP -->
 <div id="app" class="hidden">
-  <header><h1 style="display:flex;align-items:center;gap:8px"><img src="logo.png" alt="" style="width:36px;height:36px;object-fit:contain"><span class="marca" style="font-size:26px">La Picada</span></h1><div style="display:flex;gap:8px"><button class="btn s" onclick="lupa()" aria-label="Buscar">🔍</button><button class="btn s" onclick="salir()">Salir</button></div></header>
+  <header><h1 style="display:flex;align-items:center;gap:8px"><img src="logo.png" alt="" style="width:36px;height:36px;object-fit:contain"><span class="marca" style="font-size:26px">La Picada</span></h1><div style="display:flex;gap:8px"><button class="btn s" onclick="lupa()" aria-label="Buscar">🔍</button><button class="btn s" onclick="menu()" aria-label="Menú">☰</button><button class="btn s" onclick="salir()">Salir</button></div></header>
   <div id="ftop"><span id="t-sig" onclick="modo('sig')">Siguiendo</span><span id="t-todas" class="on" onclick="modo('todas')">Para ti</span><span class="lp" onclick="lupa()">🔍</span></div>
   <div id="bbox" class="hidden pad"><input id="bq" placeholder="Buscar pescadores por nombre" oninput="buscar()"><div id="busq"></div></div>
 
@@ -318,7 +318,7 @@ async function verPerfil(id, tab){
   <div style="display:flex;justify-content:space-between;align-items:center;gap:12px"><div><h2 style="font-size:28px">${esc(d.n||"Pescador")}</h2><p class="mu">${d.nh ? "@" + esc(d.nh) + " · " : ""}🎣 ${esc(d.t||"Sin especificar")}</p></div>${av}</div>
   <div style="display:flex;gap:26px;margin:14px 0">${st(nf,"Siguiendo","following")}${st(fs.size,"Seguidores","followers")}${st(likes,"Me gusta","")}</div>
   <p style="margin:8px 0">${fmt(d.b||"")}</p>` +
-  (me ? `<button class="btn s" onclick="$('ep').classList.toggle('hidden')">✏️ Editar perfil</button> <button class="btn s" onclick="ajustesNotif()">🔔 Avisos en el móvil</button> <button class="btn s" onclick="listaBloq()">🚫 Bloqueados</button> <button class="btn s" onclick="normas()">📜 Normas</button>
+  (me ? `<button class="btn s" onclick="$('ep').classList.toggle('hidden')">✏️ Editar perfil</button>
     <div id="ep" class="card pad hidden"><input id="pn" placeholder="Nombre" value="${esc(d.n||"")}"><input id="pt" placeholder="Tipo de pesca (ej. Spinning, surfcasting)" value="${esc(d.t||"")}"><textarea id="pb" data-mn rows="3" placeholder="Descripción">${esc(d.b||"")}</textarea><label class="mu"><input type="checkbox" id="pp" ${d.pub?"checked":""} style="width:auto"> Perfil público: mis capturas se pueden compartir con un enlace</label><br><button class="btn s" onclick="$('avi').click()">📷 Cambiar foto</button> <button class="btn" onclick="guardarPerfil()">Guardar</button></div>`
       : `<button class="btn${sigo?" s":""}" onclick="seguir('${id}',${sigo})">${sigo?"Siguiendo ✓":"Seguir"}</button> <button class="btn s" onclick="abrirChat('${id}')">✉ Mensaje</button> <button class="btn s" onclick="menuPerfil('${id}')" aria-label="Más opciones">⋯</button>`) +
   `<div style="display:flex;justify-content:space-around;border-bottom:1px solid var(--bd);margin:14px -16px 0">${tb("grid","▦")}${me ? tb("sav","🔖") + tb("lik", pez(true)) : ""}</div>
@@ -474,6 +474,10 @@ function menuPost(id, u){
 function menuPerfil(id){
   mostrar(`<h3>Opciones</h3><div class="card pad" style="cursor:pointer" onclick="denunciar('user','${esc(id)}','${esc(id)}')">🚩 Denunciar perfil</div>` +
     (bloq.has(id) ? `<div class="card pad" style="cursor:pointer" onclick="desbloquear('${esc(id)}','p')">✅ Desbloquear</div>` : `<div class="card pad" style="cursor:pointer" onclick="bloquear('${esc(id)}')">🚫 Bloquear a este usuario</div>`));
+}
+function menu(){
+  const it = (e, t, f) => `<div class="card pad" style="cursor:pointer;font-size:17px" onclick="${f}">${e} ${t}</div>`;
+  mostrar('<h3>☰ Menú</h3>' + (usaFB ? it("🔔", "Avisos en el móvil", "ajustesNotif()") + it("🚫", "Usuarios bloqueados", "listaBloq()") : "") + it("📜", "Normas de la comunidad", "normas()"));
 }
 function normas(){
   mostrar('<h3>📜 Normas de la comunidad</h3><div class="card pad"><p><b>Respeto.</b> Nada de insultos, acoso ni odio.</p><p style="margin-top:8px"><b>Solo pesca.</b> Comparte tus capturas y tu experiencia. Sin spam ni publicidad engañosa.</p><p style="margin-top:8px"><b>Pesca responsable.</b> No se admiten especies protegidas, piezas fuera de talla, zonas vedadas ni maltrato animal.</p><p style="margin-top:8px"><b>Contenido adecuado.</b> Nada sexual, violento ni ilegal. No publiques fotos de otras personas sin su permiso.</p><p style="margin-top:8px"><b>Tu seguridad.</b> Puedes denunciar 🚩 o bloquear 🚫 a cualquiera. Retiramos lo que incumple estas normas y podemos suspender cuentas.</p></div>');
