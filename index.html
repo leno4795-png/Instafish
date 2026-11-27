@@ -4,17 +4,23 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="manifest" href="manifest.webmanifest">
-<meta name="theme-color" content="#0a2a38">
+<meta name="theme-color" content="#082230">
 <link rel="apple-touch-icon" href="icon-192.png">
-<title>InstaFish</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@600;700&family=Barlow+Condensed:wght@600;700;800&display=swap">
+<title>La Picada</title>
 <style>
-:root{--bg:#0a2a38;--card:#0f3547;--tx:#eaf6fa;--mu:#8fb5c4;--pr:#1ba5d4;--ac:#f59e0b;--bd:#1d4a5c}
+:root{--bg:#082230;--card:#0f3547;--tx:#eaf6fa;--mu:#94b3c0;--pr:#2bc0d0;--ac:#f08a24;--bd:#1f4a5e}
 body::before{content:"";position:fixed;inset:0;background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='24'%3E%3Cpath d='M0 12Q15 2 30 12T60 12T90 12T120 12' fill='none' stroke='%2333c3f0' stroke-width='1.5'/%3E%3C/svg%3E");opacity:.07;pointer-events:none;z-index:-1}
 *{box-sizing:border-box;margin:0}
-body{font-family:system-ui,sans-serif;background:linear-gradient(180deg,#0d3f52 0%,#0a2a38 45%,#061a23 100%) fixed;color:var(--tx);max-width:480px;margin:auto;min-height:100vh;padding-bottom:70px}
+body{font-family:system-ui,sans-serif;background:linear-gradient(180deg,#0b2b3c 0%,#082230 50%,#061a26 100%) fixed;color:var(--tx);max-width:480px;margin:auto;min-height:100vh;padding-bottom:70px}
 header{position:sticky;top:0;background:var(--card);border-bottom:1px solid var(--bd);padding:12px 16px;display:flex;justify-content:space-between;align-items:center;z-index:5}
 h1{font-size:20px;color:var(--pr)}
-.btn{background:var(--pr);color:#fff;border:0;border-radius:10px;padding:10px 14px;font-size:15px;cursor:pointer}
+.marca{font-family:'Fredoka',system-ui,sans-serif;font-weight:700;color:#5cc8f0;background:linear-gradient(180deg,#a6eaf7 0%,#38b6ea 55%,#1e86d6 100%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+h2,h3,.big{font-family:'Barlow Condensed',system-ui,sans-serif;letter-spacing:.02em}
+.btn{background:var(--ac);color:#082230;font-weight:700;border:0;border-radius:10px;padding:10px 14px;font-size:15px;cursor:pointer}
 .btn.s{background:transparent;color:var(--pr);border:1px solid var(--pr)}
 input,textarea,select{width:100%;padding:11px;border-radius:10px;border:1px solid var(--bd);background:var(--card);color:var(--tx);font-size:15px;margin:6px 0}
 .box{padding:16px}
@@ -28,7 +34,7 @@ nav button.on{color:var(--pr);font-weight:700}
 nav span{display:block;font-size:20px}
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .big{font-size:28px;font-weight:700}
-.tag{background:var(--ac);color:#fff;border-radius:6px;padding:2px 8px;font-size:12px}
+.tag{background:var(--ac);color:#082230;font-weight:700;border-radius:6px;padding:2px 8px;font-size:12px}
 .hidden{display:none}
 .lock{text-align:center;padding:24px}
 .bar{height:10px;border-radius:5px;background:var(--bd);overflow:hidden;margin-top:6px}
@@ -50,7 +56,7 @@ body.fv #bbox{position:fixed;top:50px;left:50%;transform:translateX(-50%);width:
 .rc small{display:block;font-size:13px}
 .rc svg{width:38px;height:36px}
 .av{width:46px;height:46px;border-radius:50%;overflow:hidden;border:2px solid #fff;background:var(--bd);display:grid;place-items:center;font-size:22px}
-.mas{position:absolute;left:11px;bottom:-10px;width:24px;height:24px;border-radius:50%;background:var(--ac);color:#fff;font-size:18px;line-height:24px;text-align:center;cursor:pointer}
+.mas{position:absolute;left:11px;bottom:-10px;width:24px;height:24px;border-radius:50%;background:var(--ac);color:#082230;font-size:18px;font-weight:700;line-height:24px;text-align:center;cursor:pointer}
 .inf{position:absolute;left:14px;right:80px;bottom:18px;color:#fff;text-shadow:0 1px 4px #000;z-index:2}
 </style>
 </head>
@@ -59,8 +65,9 @@ body.fv #bbox{position:fixed;top:50px;left:50%;transform:translateX(-50%);width:
 <!-- LOGIN -->
 <section id="login" class="box">
   <div id="comp"></div>
-  <h1 style="font-size:34px;margin-top:50px">🎣 InstaFish</h1>
-  <p class="mu" style="margin-bottom:18px">La red social de los pescadores</p>
+  <img src="logo.png" alt="La Picada" style="width:190px;height:190px;object-fit:contain;display:block;margin:28px auto 0">
+  <h1 class="marca" style="font-size:50px;text-align:center;line-height:1.1;margin-top:4px">La Picada</h1>
+  <p class="mu" style="margin-bottom:18px;text-align:center">La red de los que pescan</p>
   <input id="em" type="email" placeholder="Correo electrónico">
   <input id="pw" type="password" placeholder="Contraseña (mín. 6 caracteres)">
   <p id="msg" class="mu" style="color:#d33"></p>
@@ -71,7 +78,7 @@ body.fv #bbox{position:fixed;top:50px;left:50%;transform:translateX(-50%);width:
 
 <!-- APP -->
 <div id="app" class="hidden">
-  <header><h1>🎣 InstaFish</h1><div style="display:flex;gap:8px"><button class="btn s" onclick="lupa()" aria-label="Buscar">🔍</button><button class="btn s" onclick="salir()">Salir</button></div></header>
+  <header><h1 style="display:flex;align-items:center;gap:8px"><img src="logo.png" alt="" style="width:36px;height:36px;object-fit:contain"><span class="marca" style="font-size:26px">La Picada</span></h1><div style="display:flex;gap:8px"><button class="btn s" onclick="lupa()" aria-label="Buscar">🔍</button><button class="btn s" onclick="salir()">Salir</button></div></header>
   <div id="ftop"><span id="t-sig" onclick="modo('sig')">Siguiendo</span><span id="t-todas" class="on" onclick="modo('todas')">Para ti</span><span class="lp" onclick="lupa()">🔍</span></div>
   <div id="bbox" class="hidden pad"><input id="bq" placeholder="Buscar pescadores por nombre" oninput="buscar()"><div id="busq"></div></div>
 
@@ -119,7 +126,7 @@ body.fv #bbox{position:fixed;top:50px;left:50%;transform:translateX(-50%);width:
   <nav>
     <button class="on" data-v="feed" onclick="ir('feed')"><span>🏠</span>Inicio</button>
     <button data-v="premium" onclick="ir('premium')"><span>🌙</span>Pesca Pro</button>
-    <button data-v="nuevo" onclick="ir('nuevo')"><span style="background:var(--pr);color:#fff;border-radius:10px;padding:0 16px;font-size:22px;line-height:30px">+</span></button>
+    <button data-v="nuevo" onclick="ir('nuevo')"><span style="background:var(--ac);color:#082230;font-weight:700;border-radius:10px;padding:0 16px;font-size:22px;line-height:30px">+</span></button>
     <button data-v="msg" onclick="verMsgs()"><span>✉️<b id="nb" class="tag hidden" style="margin-left:2px">0</b></span>Mensajes</button>
     <button data-v="perfil" onclick="verPerfil()"><span>👤</span>Perfil</button>
   </nav>
@@ -130,6 +137,7 @@ body.fv #bbox{position:fixed;top:50px;left:50%;transform:translateX(-50%);width:
 <div id="mnb" class="hidden" style="position:fixed;z-index:30;background:var(--card);border:1px solid var(--bd);border-radius:12px;overflow:hidden;box-shadow:0 6px 20px #0008"></div>
 
 <!-- Firebase (opcional): se carga solo si pegas tu configuración abajo -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
@@ -349,8 +357,8 @@ async function compartir(id){
   let pub = false;
   try { const d = await db.collection("posts").doc(id).get(); if (d.exists) { pub = !!d.data().pub; notif(d.data().uid, "share", id); } } catch(e){}
   const url = location.origin + location.pathname + "?post=" + id;
-  const aviso = pub ? "Enlace copiado. Cualquiera con el enlace puede ver esta captura." : "Enlace copiado. Tu perfil es privado: solo lo verán personas con cuenta en InstaFish.";
-  try { if (navigator.share) { await navigator.share({title:"InstaFish", url}); return; } await navigator.clipboard.writeText(url); alert(aviso); }
+  const aviso = pub ? "Enlace copiado. Cualquiera con el enlace puede ver esta captura." : "Enlace copiado. Tu perfil es privado: solo lo verán personas con cuenta en La Picada.";
+  try { if (navigator.share) { await navigator.share({title:"La Picada", url}); return; } await navigator.clipboard.writeText(url); alert(aviso); }
   catch(e){ if (e && e.name === "AbortError") return; prompt("Copia este enlace:", url); }
 }
 async function buscar(){
@@ -538,7 +546,7 @@ async function ajustesNotif(){
   const on = pushSoportado() && ls.get("if_push", false) && Notification.permission === "granted";
   const fila = (txt, ch, fn) => `<label class="card pad" style="display:flex;justify-content:space-between;align-items:center;gap:10px">${txt}<input type="checkbox" ${ch ? "checked" : ""} style="width:auto" onchange="${fn}"></label>`;
   mostrar("<h3>🔔 Avisos en el móvil</h3>" + (
-    !VAPID || !PUSH_URL ? '<p class="mu">Todavía no están activados en el servidor de InstaFish.</p>' :
+    !VAPID || !PUSH_URL ? '<p class="mu">Todavía no están activados en el servidor de La Picada.</p>' :
     !pushSoportado() ? '<p class="mu">Este navegador no admite avisos. En iPhone, añade primero la app a la pantalla de inicio (Compartir → Añadir a pantalla de inicio) y ábrela desde ahí. Hace falta iOS 16.4 o superior.</p>' :
     fila("<b>Recibir avisos en este dispositivo</b>", on, "togglePush(this)") + '<p class="mu">Elige cuáles quieres recibir:</p>' +
     Object.entries(TIPOS_NP).map(([k, v]) => fila(v, np[k] !== false, `setNp('${k}',this.checked)`)).join("") +
@@ -637,7 +645,72 @@ async function cargarPro(){
     if (S.length && S[0] != null) { const lo = Math.min(...S), hi = Math.max(...S); for (let k = 0; k < 24; k += 3) md += `<div class="mu" style="margin-top:6px">${String(k).padStart(2,"0")}:00 · ${S[k].toFixed(2)} m</div><div class="bar"><i style="width:${(S[k]-lo)/(hi-lo||1)*100}%"></i></div>`; }
     else md = '<p class="mu">Sin datos de marea para esta zona.</p>';
     $("pronos").innerHTML = `<div class="card pad"><div class="mu">Ahora en ${esc(z.n)}</div><div class="grid" style="margin-top:8px"><div>🌡️ Aire<div class="big">${Math.round(c.temperature_2m)}°C</div></div><div>🌊 Agua<div class="big">${mc.sea_surface_temperature == null ? "—" : Math.round(mc.sea_surface_temperature) + "°C"}</div></div><div>💨 Viento<div class="big">${Math.round(c.wind_speed_10m)} km/h</div></div><div>🧭 Presión<div class="big">${Math.round(c.pressure_msl)} hPa</div></div></div></div><div class="card pad"><div class="mu">Mareas hoy (modelo global, orientativo)</div>${md}</div>` + h + '<p class="mu box">Datos: Open-Meteo. Son estimaciones de modelos meteorológicos y el índice de pesca es orientativo (viento, oleaje, lluvia y luna según tu tipo de pesca): ninguna fuente es 100% exacta.</p>';
+    pintarMapa(z);
   } catch(e){ $("pronos").innerHTML = '<p class="mu box">No se pudo cargar el pronóstico. Revisa tu conexión.</p>'; }
+}
+
+// ===== Mapa de viento y oleaje (Leaflet + Open-Meteo) =====
+let MAPA = null, MCAPA = null, MPTS = [], MTIEMPOS = [], MMODO = "v", MCACHE = null;
+const RUMBOS = ["N","NE","E","SE","S","SO","O","NO"];
+const rumbo = d => RUMBOS[Math.round(((d % 360) + 360) % 360 / 45) % 8];
+function colorMapa(v, m){ const T = m === "v" ? [10, 20, 28] : [1, 2, 3.5]; return v < T[0] ? "#2bc0d0" : v < T[1] ? "#f5c542" : v < T[2] ? "#f08a24" : "#e5484d"; }
+function leyendaMapa(){
+  const pal = ["#2bc0d0", "#f5c542", "#f08a24", "#e5484d"], tx = MMODO === "v" ? ["< 10 nudos", "10–20", "20–28", "> 28"] : ["< 1 m", "1–2 m", "2–3,5 m", "> 3,5 m"];
+  return pal.map((c, i) => `<span style="white-space:nowrap"><i style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${c};margin-right:4px"></i>${tx[i]}</span>`).join(" &nbsp; ");
+}
+async function pintarMapa(z){
+  const caja = $("pronos").firstElementChild; if (!caja) return;
+  caja.insertAdjacentHTML("afterend", '<div class="card pad" id="mapcard"><div class="mu">Mapa de viento y oleaje</div>' +
+    '<div style="display:flex;gap:8px;margin:8px 0"><button class="btn" id="mpv">💨 Viento</button><button class="btn s" id="mpo">🌊 Oleaje</button></div>' +
+    '<div id="mapa" style="height:340px;border-radius:12px;overflow:hidden;background:#0a2a38"></div>' +
+    '<input type="range" id="mph" min="0" max="47" value="0" style="width:100%;margin-top:10px">' +
+    '<div id="mpt" style="font-weight:600"></div><div id="mpl" class="mu" style="font-size:12px;margin-top:4px"></div>' +
+    '<p class="mu" style="font-size:12px;margin-top:6px">La flecha apunta hacia donde va el viento o el oleaje. Orientativo: no sirve para navegar.</p></div>');
+  if (!window.L) { $("mapa").innerHTML = '<p class="mu box">No se pudo cargar el mapa. Revisa tu conexión.</p>'; return; }
+  if (MAPA) { try { MAPA.remove(); } catch(e){} MAPA = null; }
+  MAPA = window.L.map("mapa", {zoomControl: true, attributionControl: true}).setView([z.lat, z.lon], 9);
+  window.L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {subdomains: "abcd", maxZoom: 12, minZoom: 6, attribution: "© OpenStreetMap · © CARTO"}).addTo(MAPA);
+  window.L.circleMarker([z.lat, z.lon], {radius: 5, color: "#fff", weight: 2, fillColor: "#1ba5d4", fillOpacity: 1}).addTo(MAPA);
+  MCAPA = window.L.layerGroup().addTo(MAPA);
+  setTimeout(() => MAPA && MAPA.invalidateSize(), 200);
+  $("mpv").onclick = () => { MMODO = "v"; $("mpv").className = "btn"; $("mpo").className = "btn s"; dibujarMapa(); };
+  $("mpo").onclick = () => { MMODO = "o"; $("mpo").className = "btn"; $("mpv").className = "btn s"; dibujarMapa(); };
+  $("mph").oninput = dibujarMapa;
+  $("mpt").textContent = "Cargando datos del mapa…";
+  try {
+    const clave = z.lat + "," + z.lon;
+    if (!MCACHE || MCACHE.k !== clave || Date.now() - MCACHE.t > 18e5) {
+      const N = 6, dl = 0.1, dn = dl / Math.max(0.2, Math.cos(z.lat * Math.PI / 180)), la = [], lo = [];
+      for (let i = 0; i < N; i++) for (let j = 0; j < N; j++) { la.push((z.lat + (i - (N - 1) / 2) * dl).toFixed(3)); lo.push((z.lon + (j - (N - 1) / 2) * dn).toFixed(3)); }
+      const qs = `latitude=${la.join(",")}&longitude=${lo.join(",")}&timezone=auto&forecast_hours=48`;
+      const [w, m] = await Promise.all([
+        fetch(`https://api.open-meteo.com/v1/forecast?${qs}&hourly=wind_speed_10m,wind_direction_10m&wind_speed_unit=kn`).then(r => r.json()),
+        fetch(`https://marine-api.open-meteo.com/v1/marine?${qs}&hourly=wave_height,wave_direction`).then(r => r.json()).catch(() => [])]);
+      const W = Array.isArray(w) ? w : [w], M = Array.isArray(m) ? m : [m];
+      const pts = la.map((_, k) => ({lat: +la[k], lon: +lo[k], v: W[k] && W[k].hourly && W[k].hourly.wind_speed_10m, d: W[k] && W[k].hourly && W[k].hourly.wind_direction_10m,
+        h: M[k] && M[k].hourly && M[k].hourly.wave_height, hd: M[k] && M[k].hourly && M[k].hourly.wave_direction}));
+      MCACHE = {k: clave, t: Date.now(), pts, tiempos: (W[0] && W[0].hourly && W[0].hourly.time) || []};
+    }
+    MPTS = MCACHE.pts; MTIEMPOS = MCACHE.tiempos;
+    $("mph").max = Math.max(0, MTIEMPOS.length - 1);
+    dibujarMapa();
+  } catch(e){ $("mpt").textContent = "No se pudieron cargar los datos del mapa."; }
+}
+function dibujarMapa(){
+  if (!MAPA || !MCAPA) return;
+  const t = +$("mph").value || 0; MCAPA.clearLayers();
+  const ver = MMODO === "v"; let n = 0;
+  MPTS.forEach(p => {
+    const val = ver ? p.v && p.v[t] : p.h && p.h[t], dir = ver ? p.d && p.d[t] : p.hd && p.hd[t];
+    if (val == null || dir == null) return;
+    n++; const c = colorMapa(val, ver ? "v" : "o"), rot = (dir + 180) % 360, txt = ver ? Math.round(val) : val.toFixed(1);
+    const ic = window.L.divIcon({className: "", iconSize: [44, 56], iconAnchor: [22, 22],
+      html: `<div style="width:44px;text-align:center"><svg width="36" height="36" viewBox="0 0 44 44" style="transform:rotate(${rot}deg);display:block;margin:4px auto 0"><path d="M22 3 L33 30 L22 24 L11 30 Z" fill="${c}" stroke="#061a26" stroke-width="2.5" stroke-linejoin="round"/></svg><div style="font:700 13px system-ui,sans-serif;color:#fff;text-shadow:0 0 3px #000,0 0 3px #000">${txt}</div></div>`});
+    window.L.marker([p.lat, p.lon], {icon: ic, keyboard: false}).bindTooltip(ver ? `Viento ${Math.round(val)} nudos del ${rumbo(dir)}` : `Oleaje ${val.toFixed(1)} m del ${rumbo(dir)}`).addTo(MCAPA);
+  });
+  const f = MTIEMPOS[t] ? new Date(MTIEMPOS[t]) : null;
+  $("mpt").textContent = (f ? f.toLocaleString("es-ES", {weekday: "long", hour: "2-digit", minute: "2-digit"}) : "") + (ver ? " · nudos" : " · metros");
+  $("mpl").innerHTML = n ? leyendaMapa() : (ver ? "Sin datos de viento para esta zona." : "Sin datos de oleaje aquí: la zona parece de tierra o de río. Prueba con una localidad de costa.");
 }
 
 async function pintarCal(){
