@@ -182,8 +182,8 @@ async function auth(nuevo){
     ls.set("if_user", user); entrar();
   } catch(e){ $("msg").textContent = e.message; }
 }
-async function salir(){ try { await quitarPush(); } catch(e){} if (unN) { unN(); unN = null; } if (unC) { unC(); unC = null; } if (unsub) { unsub(); unsub = null; } if (usaFB) firebase.auth().signOut(); ls.set("if_user", null); user = null; $("app").classList.add("hidden"); $("login").classList.remove("hidden"); }
-function entrar(){ $("login").classList.add("hidden"); $("app").classList.remove("hidden"); if (usaFB) { escucharNotifs(); refrescarPush(); } if (pid && !pidHecho && usaFB) { pidHecho = true; ir("feed", true); abrirPost(pid); } else ir("feed"); }
+async function salir(){ try { await quitarPush(); } catch(e){} if (unN) { unN(); unN = null; } if (unC) { unC(); unC = null; } if (unsub) { unsub(); unsub = null; } if (usaFB) firebase.auth().signOut(); ls.set("if_user", null); user = null; bloq = new Set(); $("app").classList.add("hidden"); $("login").classList.remove("hidden"); }
+function entrar(){ $("login").classList.add("hidden"); $("app").classList.remove("hidden"); if (usaFB) { cargarBloqueos(); escucharNotifs(); refrescarPush(); } if (pid && !pidHecho && usaFB) { pidHecho = true; ir("feed", true); abrirPost(pid); } else ir("feed"); }
 
 function ir(v, quieto){ document.body.classList.toggle("fv", v === "feed");
   ["feed","nuevo","premium","perfil","msg"].forEach(x => $("v-"+x).classList.toggle("hidden", x !== v));
@@ -193,6 +193,7 @@ function ir(v, quieto){ document.body.classList.toggle("fv", v === "feed");
 
 function esc(s){ return String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
 function dibujar(todos){
+  todos = todos.filter(p => !p.uid || !bloq.has(p.uid));
   const st = $("feed").scrollTop;
   if (!todos.length) { $("feed").innerHTML = '<p class="box mu" style="padding-top:70px">Aún no hay capturas. ¡Sube la primera!</p>'; return; }
   $("feed").innerHTML = todos.map(p => {
@@ -205,6 +206,7 @@ function dibujar(todos){
       <button onclick="guardar('${id}',this)">${misGuard.has(p.id) ? "📌" : "🔖"}</button>
       <button onclick="compartir('${id}')"><svg viewBox="0 0 24 22"><path d="M23 9L14 1v5C6 7 2 12 1 21c3-4 7-6 13-6v5z" fill="#fff"/></svg><small>Compartir</small></button>
       ${mio ? `<button onclick="borrarPost('${id}')" aria-label="Borrar">🗑</button>` : ""}
+      ${!mio && usaFB && u && id ? `<button onclick="menuPost('${id}','${u}')" aria-label="Más opciones">⋯</button>` : ""}
     </div><div class="inf"><b class="nom" data-u="${u}" ${u ? `style="cursor:pointer;font-size:18px" onclick="verPerfil('${u}')"` : 'style="font-size:18px"'}>@${esc(p.u)}</b> ${p.e ? `<span class="tag">${esc(p.e)}</span>` : ""}<div style="margin-top:4px">${fmt(p.t || "")}</div><div style="font-size:12px;opacity:.85;margin-top:2px">${p.l ? "📍 " + esc(p.l) : ""}</div></div></div>`;
   }).join("");
   $("feed").scrollTop = st;
@@ -311,9 +313,9 @@ async function verPerfil(id, tab){
   <div style="display:flex;justify-content:space-between;align-items:center;gap:12px"><div><h2 style="font-size:28px">${esc(d.n||"Pescador")}</h2><p class="mu">${d.nh ? "@" + esc(d.nh) + " · " : ""}🎣 ${esc(d.t||"Sin especificar")}</p></div>${av}</div>
   <div style="display:flex;gap:26px;margin:14px 0">${st(nf,"Siguiendo","following")}${st(fs.size,"Seguidores","followers")}${st(likes,"Me gusta","")}</div>
   <p style="margin:8px 0">${fmt(d.b||"")}</p>` +
-  (me ? `<button class="btn s" onclick="$('ep').classList.toggle('hidden')">✏️ Editar perfil</button> <button class="btn s" onclick="ajustesNotif()">🔔 Avisos en el móvil</button>
+  (me ? `<button class="btn s" onclick="$('ep').classList.toggle('hidden')">✏️ Editar perfil</button> <button class="btn s" onclick="ajustesNotif()">🔔 Avisos en el móvil</button> <button class="btn s" onclick="listaBloq()">🚫 Bloqueados</button> <button class="btn s" onclick="normas()">📜 Normas</button>
     <div id="ep" class="card pad hidden"><input id="pn" placeholder="Nombre" value="${esc(d.n||"")}"><input id="pt" placeholder="Tipo de pesca (ej. Spinning, surfcasting)" value="${esc(d.t||"")}"><textarea id="pb" data-mn rows="3" placeholder="Descripción">${esc(d.b||"")}</textarea><label class="mu"><input type="checkbox" id="pp" ${d.pub?"checked":""} style="width:auto"> Perfil público: mis capturas se pueden compartir con un enlace</label><br><button class="btn s" onclick="$('avi').click()">📷 Cambiar foto</button> <button class="btn" onclick="guardarPerfil()">Guardar</button></div>`
-      : `<button class="btn${sigo?" s":""}" onclick="seguir('${id}',${sigo})">${sigo?"Siguiendo ✓":"Seguir"}</button> <button class="btn s" onclick="abrirChat('${id}')">✉ Mensaje</button>`) +
+      : `<button class="btn${sigo?" s":""}" onclick="seguir('${id}',${sigo})">${sigo?"Siguiendo ✓":"Seguir"}</button> <button class="btn s" onclick="abrirChat('${id}')">✉ Mensaje</button> <button class="btn s" onclick="menuPerfil('${id}')" aria-label="Más opciones">⋯</button>`) +
   `<div style="display:flex;justify-content:space-around;border-bottom:1px solid var(--bd);margin:14px -16px 0">${tb("grid","▦")}${me ? tb("sav","🔖") + tb("lik", pez(true)) : ""}</div>
   <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:2px;margin:0 -16px">${lista.map(p => `<div style="position:relative;aspect-ratio:3/4;background:var(--bd);cursor:pointer" onclick="abrirPost('${p.id}')">${p.f ? `<img src="${esc(p.f)}" style="width:100%;height:100%;object-fit:cover">` : `<div style="display:grid;place-items:center;height:100%;font-size:34px">🐟</div>`}${p.v ? '<span style="position:absolute;right:6px;top:4px;color:#fff;text-shadow:0 1px 3px #000">▶</span>' : ""}<span style="position:absolute;left:6px;bottom:4px;color:#fff;font-size:13px;text-shadow:0 1px 3px #000">${pez(true)} ${p.likes ? p.likes.length : 0}</span></div>`).join("")}</div>` +
   (lista.length ? "" : '<p class="mu" style="margin-top:16px">Aquí aún no hay capturas.</p>');
@@ -333,6 +335,7 @@ async function pintarFeed(){
   try {
     misGuard = new Set((await me.collection("saved").get()).docs.map(d => d.id));
     misSig = new Set((await me.collection("following").get()).docs.map(d => d.id));
+    await cargarBloqueos();
     if (modoFeed === "todas") {
       unsub = db.collection("posts").orderBy("c","desc").limit(30).onSnapshot(sn => dibujar(sn.docs.map(d => ({id:d.id, ...d.data()}))), fallo);
     } else if (modoFeed === "guard") {
@@ -363,7 +366,7 @@ async function buscar(){
   const q = $("bq").value.trim().toLowerCase();
   if (!q || !usaFB) { $("busq").innerHTML = ""; return; }
   const s = await db.collection("users").where("nl", ">=", q).where("nl", "<=", q + "\uf8ff").limit(10).get();
-  $("busq").innerHTML = s.docs.map(d => `<div class="card pad" style="cursor:pointer" onclick="$('bbox').classList.add('hidden');verPerfil('${d.id}')"><b>${esc(d.data().n)}</b> <span class="mu">🎣 ${esc(d.data().t||"")}</span></div>`).join("") || '<p class="mu box">No encontré a nadie con ese nombre.</p>';
+  $("busq").innerHTML = s.docs.filter(d => !bloq.has(d.id)).map(d => `<div class="card pad" style="cursor:pointer" onclick="$('bbox').classList.add('hidden');verPerfil('${d.id}')"><b>${esc(d.data().n)}</b> <span class="mu">🎣 ${esc(d.data().t||"")}</span></div>`).join("") || '<p class="mu box">No encontré a nadie con ese nombre.</p>';
 }
 const pid = new URLSearchParams(location.search).get("post");
 if (usaFB && pid) db.collection("posts").doc(pid).get().then(d => { if (d.exists) { const p = d.data(); $("comp").innerHTML = `<div class="card">${p.f ? `<img src="${esc(p.f)}" alt="">` : ""}<div class="pad"><b>@${esc(p.u)}</b> ${p.e ? `<span class="tag">${esc(p.e)}</span>` : ""}<p>${esc(p.t||"")}</p><p class="mu">Crea tu cuenta o entra para seguir a @${esc(p.u)}.</p></div></div>`; } }).catch(() => {});
@@ -418,6 +421,59 @@ async function subirHist(inp){
   verPerfil();
 }
 async function borrarHist(id){ await db.collection("stories").doc(id).delete(); cerrar(); verPerfil(); }
+// ===== Seguridad: bloquear, denunciar y normas =====
+let bloq = new Set();
+let notifsAll = [], chatsAll = [];
+function aplicaBloq(){
+  notifs = notifsAll.filter(x => !bloq.has(x.from));
+  chatsData = chatsAll.filter(c => !bloq.has((c.members || []).find(m => m !== uid())));
+  badge(); pintarMsgs();
+}
+async function cargarBloqueos(){
+  if (!usaFB) return;
+  try { bloq = new Set((await db.collection("users").doc(uid()).collection("blocks").get()).docs.map(d => d.id)); } catch(e){}
+  aplicaBloq();
+}
+async function bloquear(id){
+  if (!usaFB || !id || id === uid()) return;
+  if (!confirm("¿Bloquear a este usuario?\n\nNo verás sus publicaciones, comentarios ni mensajes, y no saldrá en tus búsquedas. Puedes desbloquearlo desde tu perfil.")) return;
+  try {
+    if (misSig.has(id)) { await seguir(id, true, true); misSig.delete(id); }
+    await db.collection("users").doc(uid()).collection("blocks").doc(id).set({c: firebase.firestore.FieldValue.serverTimestamp()});
+  } catch(e){ alert("No se pudo bloquear: " + e.message); return; }
+  bloq.add(id); aplicaBloq(); cerrar(); ir("feed");
+}
+async function desbloquear(id, vuelta){
+  try { await db.collection("users").doc(uid()).collection("blocks").doc(id).delete(); } catch(e){ alert("No se pudo desbloquear: " + e.message); return; }
+  bloq.delete(id); aplicaBloq();
+  if (vuelta === "p") { cerrar(); verPerfil(id); } else listaBloq();
+}
+async function listaBloq(){
+  const us = await Promise.all([...bloq].map(i => db.collection("users").doc(i).get()));
+  mostrar("<h3>🚫 Usuarios bloqueados</h3>" + (us.map(u => `<div class="card pad" style="display:flex;justify-content:space-between;align-items:center;gap:10px"><b>${esc((u.exists && u.data().n) || "Pescador")}</b><button class="btn s" onclick="desbloquear('${esc(u.id)}')">Desbloquear</button></div>`).join("") || '<p class="mu">No tienes a nadie bloqueado.</p>'));
+}
+const MOTIVOS = ["Contenido sexual o inapropiado", "Acoso, insultos u odio", "Spam o publicidad engañosa", "Pesca ilegal o maltrato animal", "Suplanta a otra persona", "Otro motivo"];
+function denunciar(tipo, obj, dueno){
+  mostrar('<h3>🚩 Denunciar</h3><p class="mu">Elige el motivo. Revisaremos la denuncia y retiraremos lo que incumpla las normas.</p>' +
+    MOTIVOS.map((m, i) => `<div class="card pad" style="cursor:pointer" onclick="enviarDenuncia('${esc(tipo)}','${esc(obj)}','${esc(dueno)}',${i})">${m}</div>`).join(""));
+}
+async function enviarDenuncia(tipo, obj, dueno, i){
+  try { await db.collection("reports").add({by: uid(), tipo, obj, dueno, motivo: MOTIVOS[i], c: firebase.firestore.FieldValue.serverTimestamp()}); }
+  catch(e){ alert("No se pudo enviar la denuncia: " + e.message); return; }
+  mostrar('<h3>Gracias</h3><p>Hemos recibido tu denuncia.</p><p class="mu" style="margin:8px 0 14px">Si quieres dejar de ver a esta persona, puedes bloquearla.</p>' +
+    (dueno && dueno !== uid() ? `<button class="btn" onclick="bloquear('${esc(dueno)}')">🚫 Bloquear usuario</button> ` : "") + '<button class="btn s" onclick="cerrar()">Cerrar</button>');
+}
+function menuPost(id, u){
+  mostrar(`<h3>Opciones</h3><div class="card pad" style="cursor:pointer" onclick="denunciar('post','${esc(id)}','${esc(u)}')">🚩 Denunciar publicación</div><div class="card pad" style="cursor:pointer" onclick="bloquear('${esc(u)}')">🚫 Bloquear a este usuario</div>`);
+}
+function menuPerfil(id){
+  mostrar(`<h3>Opciones</h3><div class="card pad" style="cursor:pointer" onclick="denunciar('user','${esc(id)}','${esc(id)}')">🚩 Denunciar perfil</div>` +
+    (bloq.has(id) ? `<div class="card pad" style="cursor:pointer" onclick="desbloquear('${esc(id)}','p')">✅ Desbloquear</div>` : `<div class="card pad" style="cursor:pointer" onclick="bloquear('${esc(id)}')">🚫 Bloquear a este usuario</div>`));
+}
+function normas(){
+  mostrar('<h3>📜 Normas de la comunidad</h3><div class="card pad"><p><b>Respeto.</b> Nada de insultos, acoso ni odio.</p><p style="margin-top:8px"><b>Solo pesca.</b> Comparte tus capturas y tu experiencia. Sin spam ni publicidad engañosa.</p><p style="margin-top:8px"><b>Pesca responsable.</b> No se admiten especies protegidas, piezas fuera de talla, zonas vedadas ni maltrato animal.</p><p style="margin-top:8px"><b>Contenido adecuado.</b> Nada sexual, violento ni ilegal. No publiques fotos de otras personas sin su permiso.</p><p style="margin-top:8px"><b>Tu seguridad.</b> Puedes denunciar 🚩 o bloquear 🚫 a cualquiera. Retiramos lo que incumple estas normas y podemos suspender cuentas.</p></div>');
+}
+
 let notifs = [], unN = null, unC = null, chatsData = [], unChat = null;
 async function notif(to, t, pid){
   if (!usaFB || !to || to === uid()) return;
@@ -426,8 +482,8 @@ async function notif(to, t, pid){
 }
 function escucharNotifs(){
   if (unN) unN(); if (unC) unC();
-  unN = db.collection("users").doc(uid()).collection("notifs").orderBy("c","desc").limit(30).onSnapshot(s => { notifs = s.docs.map(d => ({id:d.id, ...d.data()})); badge(); pintarMsgs(); }, () => {});
-  unC = db.collection("chats").where("members","array-contains",uid()).onSnapshot(s => { chatsData = s.docs.map(d => ({id:d.id, ...d.data()})).filter(c => c.lastAt).sort((a, b) => b.lastAt.seconds - a.lastAt.seconds); badge(); pintarMsgs(); }, () => {});
+  unN = db.collection("users").doc(uid()).collection("notifs").orderBy("c","desc").limit(30).onSnapshot(s => { notifsAll = s.docs.map(d => ({id:d.id, ...d.data()})); aplicaBloq(); }, () => {});
+  unC = db.collection("chats").where("members","array-contains",uid()).onSnapshot(s => { chatsAll = s.docs.map(d => ({id:d.id, ...d.data()})).filter(c => c.lastAt).sort((a, b) => b.lastAt.seconds - a.lastAt.seconds); aplicaBloq(); }, () => {});
 }
 const TXT = {like:"🐟 dio me gusta a tu captura", follow:"👤 empezó a seguirte", comment:"💬 comentó tu captura", share:"🔗 compartió tu captura", mention:"🏷️ te etiquetó"};
 function verNotifs(){
@@ -478,14 +534,15 @@ function pintarMsgs(){
 async function buscarMsg(){
   const q = $("mq").value.trim().toLowerCase(); if (!q) { $("mres").innerHTML = ""; return; }
   const s = await db.collection("users").where("nl", ">=", q).where("nl", "<=", q + "").limit(8).get();
-  $("mres").innerHTML = s.docs.filter(d => d.id !== uid() && d.data().n).map(d => `<div class="card pad" style="cursor:pointer" onclick="abrirChat('${d.id}')"><b>${esc(d.data().n)}</b> <span class="mu">🎣 ${esc(d.data().t || "")}</span></div>`).join("") || '<p class="mu">No encontré a nadie con ese nombre.</p>';
+  $("mres").innerHTML = s.docs.filter(d => d.id !== uid() && d.data().n && !bloq.has(d.id)).map(d => `<div class="card pad" style="cursor:pointer" onclick="abrirChat('${d.id}')"><b>${esc(d.data().n)}</b> <span class="mu">🎣 ${esc(d.data().t || "")}</span></div>`).join("") || '<p class="mu">No encontré a nadie con ese nombre.</p>';
 }
 async function abrirChat(o){
   if (!usaFB || !o) return;
+  if (bloq.has(o)) { mostrar(`<h3>Usuario bloqueado</h3><p class="mu" style="margin:8px 0 14px">Has bloqueado a este usuario, así que no puedes escribirle.</p><button class="btn" onclick="desbloquear('${esc(o)}','p')">Desbloquear</button>`); return; }
   const cid = cidOf(o), R = db.collection("chats").doc(cid);
   try { await R.set({members: [uid(), o].sort()}, {merge:true}); } catch(e){ alert("No se pudo abrir el chat: " + e.message); return; }
   const od = await db.collection("users").doc(o).get(), nm = od.exists && od.data().n ? od.data().n : "Pescador";
-  mostrar(`<h3 style="cursor:pointer" onclick="cerrar();verPerfil('${esc(o)}')">✉ ${esc(nm)}</h3><div id="msgs" style="height:55vh;overflow:auto;display:flex;flex-direction:column;gap:6px;padding:8px 0"></div><div style="display:flex;gap:6px"><input id="mi" placeholder="Escribe un mensaje…" onkeydown="if(event.key==='Enter')enviarMsg('${esc(o)}')"><button class="btn" onclick="enviarMsg('${esc(o)}')">Enviar</button></div>`);
+  mostrar(`<h3 style="cursor:pointer" onclick="cerrar();verPerfil('${esc(o)}')">✉ ${esc(nm)}</h3><div style="display:flex;gap:8px;margin-bottom:6px"><button class="btn s" onclick="denunciar('user','${esc(o)}','${esc(o)}')">🚩 Denunciar</button><button class="btn s" onclick="bloquear('${esc(o)}')">🚫 Bloquear</button></div><div id="msgs" style="height:55vh;overflow:auto;display:flex;flex-direction:column;gap:6px;padding:8px 0"></div><div style="display:flex;gap:6px"><input id="mi" placeholder="Escribe un mensaje…" onkeydown="if(event.key==='Enter')enviarMsg('${esc(o)}')"><button class="btn" onclick="enviarMsg('${esc(o)}')">Enviar</button></div>`);
   ls.set("if_chat_" + cid, Date.now()); badge();
   unChat = R.collection("messages").orderBy("c").limitToLast(100).onSnapshot(s => {
     const el = $("msgs"); if (!el) return;
@@ -517,7 +574,7 @@ document.addEventListener("input", e => {
   mnT = setTimeout(async () => {
     try {
       const s = await db.collection("users").where("nh", ">=", q).where("nh", "<=", q + "").limit(5).get(), b = $("mnb");
-      const us = s.docs.filter(d => d.data().n && d.id !== uid());
+      const us = s.docs.filter(d => d.data().n && d.id !== uid() && !bloq.has(d.id));
       if (!us.length) { ocultaMn(); return; }
       mnEl = t;
       b.innerHTML = us.map(d => `<div style="padding:10px 14px;cursor:pointer;border-bottom:1px solid var(--bd)" onpointerdown="event.preventDefault();elegirMn('${esc(d.data().nh)}')"><b>${esc(d.data().n)}</b> <span class="mu">@${esc(d.data().nh)}</span></div>`).join("");
@@ -586,10 +643,10 @@ async function refrescarPush(){
 function lupa(){ const b = $("bbox"); b.classList.toggle("hidden"); if (!b.classList.contains("hidden")) $("bq").focus(); }
 async function pintarCom(id, todos){
   const el = $("cm-" + id);
-  const s = await db.collection("posts").doc(id).collection("comments").orderBy("c").limit(100).get(), n = s.size;
+  const s = await db.collection("posts").doc(id).collection("comments").orderBy("c").limit(100).get(), ds = s.docs.filter(d => !bloq.has(d.data().uid)), n = ds.length;
   if ($("cn-" + id)) $("cn-" + id).textContent = n;
   if (!el) return;
-  el.innerHTML = s.docs.slice(0, todos ? n : 3).map(d => `<p style="margin:4px 0"><b>@${esc(d.data().u)}</b> ${fmt(d.data().t)}</p>`).join("") +
+  el.innerHTML = ds.slice(0, todos ? n : 3).map(d => `<p style="margin:4px 0"><b>@${esc(d.data().u)}</b> ${fmt(d.data().t)}${d.data().uid && d.data().uid !== uid() ? ` <span class="mu" style="cursor:pointer" title="Denunciar" onclick="denunciar('comment','${esc(id)}/${esc(d.id)}','${esc(d.data().uid)}')">🚩</span>` : ""}</p>`).join("") +
     (n > 3 && !todos ? `<p class="mu" style="cursor:pointer" onclick="pintarCom('${id}',true)">Ver los ${n} comentarios</p>` : "") +
     `<input id="ci-${id}" data-mn placeholder="Añade un comentario… (@nombre para etiquetar)"><button class="btn s" onclick="enviarCom('${id}')">Enviar</button>`;
 }
