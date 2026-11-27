@@ -6,7 +6,6 @@
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#082230">
 <link rel="apple-touch-icon" href="icon-192.png">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@600;700&family=Barlow+Condensed:wght@600;700;800&display=swap">
@@ -137,7 +136,6 @@ body.fv #bbox{position:fixed;top:50px;left:50%;transform:translateX(-50%);width:
 <div id="mnb" class="hidden" style="position:fixed;z-index:30;background:var(--card);border:1px solid var(--bd);border-radius:12px;overflow:hidden;box-shadow:0 6px 20px #0008"></div>
 
 <!-- Firebase (opcional): se carga solo si pegas tu configuración abajo -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
@@ -649,68 +647,49 @@ async function cargarPro(){
   } catch(e){ $("pronos").innerHTML = '<p class="mu box">No se pudo cargar el pronóstico. Revisa tu conexión.</p>'; }
 }
 
-// ===== Mapa de viento y oleaje (Leaflet + Open-Meteo) =====
-let MAPA = null, MCAPA = null, MPTS = [], MTIEMPOS = [], MMODO = "v", MCACHE = null;
+// ===== Mapa tipo Windy (gratis, embebido) + contraste de modelos =====
+let WCAPA = "wind", WMOD = "ecmwf";
 const RUMBOS = ["N","NE","E","SE","S","SO","O","NO"];
 const rumbo = d => RUMBOS[Math.round(((d % 360) + 360) % 360 / 45) % 8];
-function colorMapa(v, m){ const T = m === "v" ? [10, 20, 28] : [1, 2, 3.5]; return v < T[0] ? "#2bc0d0" : v < T[1] ? "#f5c542" : v < T[2] ? "#f08a24" : "#e5484d"; }
-function leyendaMapa(){
-  const pal = ["#2bc0d0", "#f5c542", "#f08a24", "#e5484d"], tx = MMODO === "v" ? ["< 10 nudos", "10–20", "20–28", "> 28"] : ["< 1 m", "1–2 m", "2–3,5 m", "> 3,5 m"];
-  return pal.map((c, i) => `<span style="white-space:nowrap"><i style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${c};margin-right:4px"></i>${tx[i]}</span>`).join(" &nbsp; ");
+function urlWindy(z){
+  const la = z.lat.toFixed(3), lo = z.lon.toFixed(3);
+  return "https://embed.windy.com/embed.html?type=map&location=coordinates&metricRain=mm&metricTemp=%C2%B0C&metricWind=kt&zoom=8&overlay=" + WCAPA + "&product=" + WMOD + "&level=surface&lat=" + la + "&lon=" + lo + "&detailLat=" + la + "&detailLon=" + lo + "&marker=true&message=true";
 }
-async function pintarMapa(z){
+function marcarWindy(){ document.querySelectorAll("#mapcard [data-w]").forEach(b => { b.className = "btn" + (b.dataset.w === WCAPA || b.dataset.w === WMOD ? "" : " s"); }); }
+function setWindy(k, v){ if (k === "o") WCAPA = v; else WMOD = v; const z = ls.get("if_zona", null); if (!z || !$("wif")) return; $("wif").src = urlWindy(z); marcarWindy(); }
+function pintarMapa(z){
   const caja = $("pronos").firstElementChild; if (!caja) return;
-  caja.insertAdjacentHTML("afterend", '<div class="card pad" id="mapcard"><div class="mu">Mapa de viento y oleaje</div>' +
-    '<div style="display:flex;gap:8px;margin:8px 0"><button class="btn" id="mpv">💨 Viento</button><button class="btn s" id="mpo">🌊 Oleaje</button></div>' +
-    '<div id="mapa" style="height:340px;border-radius:12px;overflow:hidden;background:#0a2a38"></div>' +
-    '<input type="range" id="mph" min="0" max="47" value="0" style="width:100%;margin-top:10px">' +
-    '<div id="mpt" style="font-weight:600"></div><div id="mpl" class="mu" style="font-size:12px;margin-top:4px"></div>' +
-    '<p class="mu" style="font-size:12px;margin-top:6px">La flecha apunta hacia donde va el viento o el oleaje. Orientativo: no sirve para navegar.</p></div>');
-  if (!window.L) { $("mapa").innerHTML = '<p class="mu box">No se pudo cargar el mapa. Revisa tu conexión.</p>'; return; }
-  if (MAPA) { try { MAPA.remove(); } catch(e){} MAPA = null; }
-  MAPA = window.L.map("mapa", {zoomControl: true, attributionControl: true}).setView([z.lat, z.lon], 9);
-  window.L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {subdomains: "abcd", maxZoom: 12, minZoom: 6, attribution: "© OpenStreetMap · © CARTO"}).addTo(MAPA);
-  window.L.circleMarker([z.lat, z.lon], {radius: 5, color: "#fff", weight: 2, fillColor: "#1ba5d4", fillOpacity: 1}).addTo(MAPA);
-  MCAPA = window.L.layerGroup().addTo(MAPA);
-  setTimeout(() => MAPA && MAPA.invalidateSize(), 200);
-  $("mpv").onclick = () => { MMODO = "v"; $("mpv").className = "btn"; $("mpo").className = "btn s"; dibujarMapa(); };
-  $("mpo").onclick = () => { MMODO = "o"; $("mpo").className = "btn"; $("mpv").className = "btn s"; dibujarMapa(); };
-  $("mph").oninput = dibujarMapa;
-  $("mpt").textContent = "Cargando datos del mapa…";
-  try {
-    const clave = z.lat + "," + z.lon;
-    if (!MCACHE || MCACHE.k !== clave || Date.now() - MCACHE.t > 18e5) {
-      const N = 6, dl = 0.1, dn = dl / Math.max(0.2, Math.cos(z.lat * Math.PI / 180)), la = [], lo = [];
-      for (let i = 0; i < N; i++) for (let j = 0; j < N; j++) { la.push((z.lat + (i - (N - 1) / 2) * dl).toFixed(3)); lo.push((z.lon + (j - (N - 1) / 2) * dn).toFixed(3)); }
-      const qs = `latitude=${la.join(",")}&longitude=${lo.join(",")}&timezone=auto&forecast_hours=48`;
-      const [w, m] = await Promise.all([
-        fetch(`https://api.open-meteo.com/v1/forecast?${qs}&hourly=wind_speed_10m,wind_direction_10m&wind_speed_unit=kn`).then(r => r.json()),
-        fetch(`https://marine-api.open-meteo.com/v1/marine?${qs}&hourly=wave_height,wave_direction`).then(r => r.json()).catch(() => [])]);
-      const W = Array.isArray(w) ? w : [w], M = Array.isArray(m) ? m : [m];
-      const pts = la.map((_, k) => ({lat: +la[k], lon: +lo[k], v: W[k] && W[k].hourly && W[k].hourly.wind_speed_10m, d: W[k] && W[k].hourly && W[k].hourly.wind_direction_10m,
-        h: M[k] && M[k].hourly && M[k].hourly.wave_height, hd: M[k] && M[k].hourly && M[k].hourly.wave_direction}));
-      MCACHE = {k: clave, t: Date.now(), pts, tiempos: (W[0] && W[0].hourly && W[0].hourly.time) || []};
-    }
-    MPTS = MCACHE.pts; MTIEMPOS = MCACHE.tiempos;
-    $("mph").max = Math.max(0, MTIEMPOS.length - 1);
-    dibujarMapa();
-  } catch(e){ $("mpt").textContent = "No se pudieron cargar los datos del mapa."; }
+  const bt = (k, v, t) => `<button class="btn s" data-w="${v}" onclick="setWindy('${k}','${v}')" style="padding:8px 12px;font-size:14px">${t}</button>`;
+  caja.insertAdjacentHTML("afterend",
+    '<div class="card pad" id="mapcard"><div class="mu">Mapa del tiempo en movimiento</div>' +
+    '<div style="display:flex;gap:6px;flex-wrap:wrap;margin:8px 0">' + bt("o", "wind", "💨 Viento") + bt("o", "waves", "🌊 Oleaje") + bt("o", "rain", "🌧️ Lluvia") + bt("o", "pressure", "🧭 Presión") + '</div>' +
+    '<div style="display:flex;gap:6px;align-items:center;margin-bottom:8px"><span class="mu">Modelo:</span>' + bt("m", "ecmwf", "ECMWF") + bt("m", "gfs", "GFS") + '</div>' +
+    '<iframe id="wif" title="Mapa de viento y oleaje" loading="lazy" allowfullscreen style="width:100%;height:440px;border:0;border-radius:12px;background:#0a2a38"></iframe>' +
+    '<p class="mu" style="font-size:12px;margin-top:6px">Mapa de Windy.com. Arrastra y haz zoom. Cambia de modelo para comparar: si dos modelos dicen lo mismo, el pronóstico es más fiable.</p></div>' +
+    '<div class="card pad" id="cmcard"><div class="mu">Contraste de modelos · viento en nudos</div><div id="cmod" class="mu" style="margin-top:8px">Cargando…</div></div>');
+  $("wif").src = urlWindy(z); marcarWindy();
+  contrasteModelos(z);
 }
-function dibujarMapa(){
-  if (!MAPA || !MCAPA) return;
-  const t = +$("mph").value || 0; MCAPA.clearLayers();
-  const ver = MMODO === "v"; let n = 0;
-  MPTS.forEach(p => {
-    const val = ver ? p.v && p.v[t] : p.h && p.h[t], dir = ver ? p.d && p.d[t] : p.hd && p.hd[t];
-    if (val == null || dir == null) return;
-    n++; const c = colorMapa(val, ver ? "v" : "o"), rot = (dir + 180) % 360, txt = ver ? Math.round(val) : val.toFixed(1);
-    const ic = window.L.divIcon({className: "", iconSize: [44, 56], iconAnchor: [22, 22],
-      html: `<div style="width:44px;text-align:center"><svg width="36" height="36" viewBox="0 0 44 44" style="transform:rotate(${rot}deg);display:block;margin:4px auto 0"><path d="M22 3 L33 30 L22 24 L11 30 Z" fill="${c}" stroke="#061a26" stroke-width="2.5" stroke-linejoin="round"/></svg><div style="font:700 13px system-ui,sans-serif;color:#fff;text-shadow:0 0 3px #000,0 0 3px #000">${txt}</div></div>`});
-    window.L.marker([p.lat, p.lon], {icon: ic, keyboard: false}).bindTooltip(ver ? `Viento ${Math.round(val)} nudos del ${rumbo(dir)}` : `Oleaje ${val.toFixed(1)} m del ${rumbo(dir)}`).addTo(MCAPA);
-  });
-  const f = MTIEMPOS[t] ? new Date(MTIEMPOS[t]) : null;
-  $("mpt").textContent = (f ? f.toLocaleString("es-ES", {weekday: "long", hour: "2-digit", minute: "2-digit"}) : "") + (ver ? " · nudos" : " · metros");
-  $("mpl").innerHTML = n ? leyendaMapa() : (ver ? "Sin datos de viento para esta zona." : "Sin datos de oleaje aquí: la zona parece de tierra o de río. Prueba con una localidad de costa.");
+async function contrasteModelos(z){
+  const M = [["ecmwf_ifs025", "ECMWF"], ["gfs_seamless", "GFS"], ["icon_seamless", "ICON"]];
+  try {
+    const r = await (await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${z.lat}&longitude=${z.lon}&hourly=wind_speed_10m,wind_direction_10m&models=${M.map(m => m[0]).join(",")}&wind_speed_unit=kn&timezone=auto&forecast_hours=36`).then(r => r.json()));
+    const H = r.hourly, T = H.time || []; let h = "", ok = 0, tot = 0;
+    const col = sp => sp <= 3 ? ["#2bc0d0", "Alto"] : sp <= 6 ? ["#f5c542", "Medio"] : ["#e5484d", "Bajo"];
+    for (let i = 0; i < T.length; i++) {
+      const vs = M.map(m => H["wind_speed_10m_" + m[0]] ? H["wind_speed_10m_" + m[0]][i] : null);
+      const ok3 = vs.filter(v => v != null); if (ok3.length < 2) continue;
+      const sp = Math.max(...ok3) - Math.min(...ok3); if (i < 24) { tot++; if (sp <= 6) ok++; }
+      if (i % 3 !== 0 || i > 24) continue;
+      const c = col(sp);
+      h += `<div style="display:grid;grid-template-columns:1.1fr repeat(3,1fr) .9fr;gap:4px;padding:5px 0;border-top:1px solid var(--bd);font-size:14px"><span class="mu">${T[i].slice(11, 16)}</span>` +
+        M.map((m, k) => `<span>${vs[k] == null ? "—" : Math.round(vs[k]) + " " + rumbo(H["wind_direction_10m_" + m[0]][i])}</span>`).join("") +
+        `<b style="color:${c[0]}">${c[1]}</b></div>`;
+    }
+    const pc = tot ? Math.round(ok / tot * 100) : 0;
+    $("cmod").innerHTML = (h ? `<div style="display:grid;grid-template-columns:1.1fr repeat(3,1fr) .9fr;gap:4px;font-size:12px;font-weight:700;color:var(--mu)"><span>Hora</span>${M.map(m => `<span>${m[1]}</span>`).join("")}<span>Acuerdo</span></div>` + h : '<p class="mu">Sin datos de modelos para esta zona.</p>') +
+      (tot ? `<p style="margin-top:8px;color:var(--tx)">Las próximas 24 h, los modelos coinciden (±6 nudos) en el <b>${pc}%</b> de las horas. ${pc >= 75 ? "Pronóstico fiable." : pc >= 45 ? "Fiabilidad media: revísalo antes de salir." : "Los modelos discrepan: pronóstico dudoso."}</p>` : "");
+  } catch(e){ $("cmod").textContent = "No se pudo comparar los modelos. Revisa tu conexión."; }
 }
 
 async function pintarCal(){
