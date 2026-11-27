@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#0a2a38">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>InstaFish</title>
+<style>
+:root{--bg:#0a2a38;--card:#0f3547;--tx:#eaf6fa;--mu:#8fb5c4;--pr:#1ba5d4;--ac:#f59e0b;--bd:#1d4a5c}
+body::before{content:"";position:fixed;inset:0;background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='24'%3E%3Cpath d='M0 12Q15 2 30 12T60 12T90 12T120 12' fill='none' stroke='%2333c3f0' stroke-width='1.5'/%3E%3C/svg%3E");opacity:.07;pointer-events:none;z-index:-1}
+*{box-sizing:border-box;margin:0}
+body{font-family:system-ui,sans-serif;background:linear-gradient(180deg,#0d3f52 0%,#0a2a38 45%,#061a23 100%) fixed;color:var(--tx);max-width:480px;margin:auto;min-height:100vh;padding-bottom:70px}
+header{position:sticky;top:0;background:var(--card);border-bottom:1px solid var(--bd);padding:12px 16px;display:flex;justify-content:space-between;align-items:center;z-index:5}
+h1{font-size:20px;color:var(--pr)}
+.btn{background:var(--pr);color:#fff;border:0;border-radius:10px;padding:10px 14px;font-size:15px;cursor:pointer}
+.btn.s{background:transparent;color:var(--pr);border:1px solid var(--pr)}
+input,textarea,select{width:100%;padding:11px;border-radius:10px;border:1px solid var(--bd);background:var(--card);color:var(--tx);font-size:15px;margin:6px 0}
+.box{padding:16px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:14px;margin:12px;overflow:hidden}
+.card img{width:100%;display:block;max-height:420px;object-fit:cover}
+.pad{padding:12px}
+.mu{color:var(--mu);font-size:13px}
+nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;background:var(--card);border-top:1px solid var(--bd);display:flex}
+nav button{flex:1;background:none;border:0;padding:12px 0;font-size:13px;color:var(--mu);cursor:pointer}
+nav button.on{color:var(--pr);font-weight:700}
+nav span{display:block;font-size:20px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.big{font-size:28px;font-weight:700}
+.tag{background:var(--ac);color:#fff;border-radius:6px;padding:2px 8px;font-size:12px}
+.hidden{display:none}
+.lock{text-align:center;padding:24px}
+.bar{height:10px;border-radius:5px;background:var(--bd);overflow:hidden;margin-top:6px}
+.bar i{display:block;height:100%;background:var(--ac)}
+#ftop{display:none}
+body.fv{padding-bottom:0}
+body.fv header{display:none}
+body.fv #ftop{display:flex;position:fixed;top:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;z-index:6;justify-content:center;gap:20px;padding:14px;background:linear-gradient(#000b,transparent);align-items:center}
+#ftop span{color:#fff;opacity:.7;font-size:17px;cursor:pointer;text-shadow:0 1px 3px #000;padding-bottom:3px}
+#ftop span.on{opacity:1;font-weight:700;border-bottom:2px solid #fff}
+#ftop .lp{position:absolute;right:16px;opacity:1;font-size:20px;border:0}
+body.fv #bbox{position:fixed;top:50px;left:50%;transform:translateX(-50%);width:100%;max-width:480px;z-index:7;background:var(--card)}
+#feed{height:calc(100dvh - 56px);overflow-y:auto;scroll-snap-type:y mandatory}
+.vp{position:relative;height:calc(100dvh - 56px);scroll-snap-align:start;background:#000;overflow:hidden}
+.vp img,.vp video{width:100%;height:100%;object-fit:contain}
+.vp::after{content:"";position:absolute;left:0;right:0;bottom:0;height:40%;background:linear-gradient(transparent,#000a);pointer-events:none}
+.rc{position:absolute;right:10px;bottom:24px;display:flex;flex-direction:column;align-items:center;gap:14px;color:#fff;z-index:2}
+.rc button{background:none;border:0;color:#fff;font-size:28px;cursor:pointer;text-shadow:0 1px 3px #000;text-align:center;padding:0}
+.rc small{display:block;font-size:13px}
+.rc svg{width:38px;height:36px}
+.av{width:46px;height:46px;border-radius:50%;overflow:hidden;border:2px solid #fff;background:var(--bd);display:grid;place-items:center;font-size:22px}
+.mas{position:absolute;left:11px;bottom:-10px;width:24px;height:24px;border-radius:50%;background:var(--ac);color:#fff;font-size:18px;line-height:24px;text-align:center;cursor:pointer}
+.inf{position:absolute;left:14px;right:80px;bottom:18px;color:#fff;text-shadow:0 1px 4px #000;z-index:2}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<section id="login" class="box">
+  <div id="comp"></div>
+  <h1 style="font-size:34px;margin-top:50px">🎣 InstaFish</h1>
+  <p class="mu" style="margin-bottom:18px">La red social de los pescadores</p>
+  <input id="em" type="email" placeholder="Correo electrónico">
+  <input id="pw" type="password" placeholder="Contraseña (mín. 6 caracteres)">
+  <p id="msg" class="mu" style="color:#d33"></p>
+  <button class="btn" style="width:100%;margin-top:8px" onclick="auth(false)">Entrar</button>
+  <button class="btn s" style="width:100%;margin-top:8px" onclick="auth(true)">Crear cuenta</button>
+  <p class="mu" id="modo" style="margin-top:14px"></p>
+</section>
+
+<!-- APP -->
+<div id="app" class="hidden">
+  <header><h1>🎣 InstaFish</h1><div style="display:flex;gap:8px"><button class="btn s" onclick="lupa()" aria-label="Buscar">🔍</button><button class="btn s" onclick="salir()">Salir</button></div></header>
+  <div id="ftop"><span id="t-sig" onclick="modo('sig')">Siguiendo</span><span id="t-todas" class="on" onclick="modo('todas')">Para ti</span><span class="lp" onclick="lupa()">🔍</span></div>
+  <div id="bbox" class="hidden pad"><input id="bq" placeholder="Buscar pescadores por nombre" oninput="buscar()"><div id="busq"></div></div>
+
+  <section id="v-feed"><div id="feed"></div></section>
+
+  <section id="v-nuevo" class="box hidden">
+    <h2>Nueva captura</h2>
+    <div class="card pad"><b>🌐 Público</b>
+      <p class="mu" style="margin:4px 0">Foto o vídeo (máx. 60 MB)</p><input id="foto" type="file" accept="image/*,video/*">
+      <input id="esp" placeholder="Especie (ej. Calamar)">
+      <input id="lug" placeholder="Zona (ej. Tarifa)">
+      <textarea id="txt" data-mn rows="3" placeholder="Descripción (usa @nombre para etiquetar a alguien)"></textarea></div>
+    <div class="card pad"><b>🔒 Privado: solo para tu calendario</b>
+      <input id="fec" type="date">
+      <input id="egi" placeholder="Color del egi / señuelo">
+      <input id="lp" placeholder="Lugar exacto (tu spot)">
+      <textarea id="npv" rows="2" placeholder="Notas privadas (hora, cebo, mar...)"></textarea>
+      <p class="mu">El tiempo y la luna de ese día se guardan solos.</p></div>
+    <label class="mu"><input type="checkbox" id="pubf" checked style="width:auto"> Publicar también en el inicio</label>
+    <button class="btn" style="width:100%;margin-top:10px" id="gbtn" onclick="publicar()">Guardar captura</button>
+  </section>
+
+  <section id="v-msg" class="box hidden"></section>
+
+  <section id="v-perfil" class="box hidden"></section>
+
+  <section id="v-premium" class="box hidden">
+    <h2>Pesca Pro <span class="tag">PREMIUM</span></h2>
+    <div id="bloqueo" class="card lock">
+      <p style="font-size:40px">🔒</p>
+      <p>Meteorología, mareas, ciclos lunares y los mejores días para pescar.</p>
+      <button class="btn" style="margin-top:14px" onclick="activar()">Activar Premium (demo)</button>
+    </div>
+    <div id="pro" class="hidden">
+      <div class="card pad"><div class="mu">Tu zona y tipo de pesca</div>
+        <input id="zona" placeholder="Localidad (ej. Tarifa)">
+        <select id="tipo" onchange="cargarPro()"><option value="spinning">Spinning</option><option value="surfcasting">Surfcasting</option><option value="bote">Desde bote</option><option value="rio">Río / agua dulce</option><option value="mosca">Mosca</option></select>
+        <button class="btn" onclick="buscarZona()">Ver pronóstico</button><p class="mu" id="zn"></p></div>
+      <div id="pronos"></div>
+      <div class="card pad"><h3>📅 Mi calendario de capturas</h3>
+        <p class="mu">Tus capturas se guardan aquí solas cuando las subes desde ➕, con el tiempo y la luna de ese día.</p><div id="cal"></div></div>
+    </div>
+  </section>
+
+  <nav>
+    <button class="on" data-v="feed" onclick="ir('feed')"><span>🏠</span>Inicio</button>
+    <button data-v="premium" onclick="ir('premium')"><span>🌙</span>Pesca Pro</button>
+    <button data-v="nuevo" onclick="ir('nuevo')"><span style="background:var(--pr);color:#fff;border-radius:10px;padding:0 16px;font-size:22px;line-height:30px">+</span></button>
+    <button data-v="msg" onclick="verMsgs()"><span>✉️<b id="nb" class="tag hidden" style="margin-left:2px">0</b></span>Mensajes</button>
+    <button data-v="perfil" onclick="verPerfil()"><span>👤</span>Perfil</button>
+  </nav>
+</div>
+
+<div id="ov" class="hidden" style="position:fixed;inset:0;background:rgba(3,15,20,.97);z-index:20;overflow:auto;max-width:480px;margin:auto"><button class="btn s" style="margin:12px" onclick="cerrar()">✕ Cerrar</button><div id="ovc" class="box"></div></div>
+
+<div id="mnb" class="hidden" style="position:fixed;z-index:30;background:var(--card);border:1px solid var(--bd);border-radius:12px;overflow:hidden;box-shadow:0 6px 20px #0008"></div>
+
+<!-- Firebase (opcional): se carga solo si pegas tu configuración abajo -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging-compat.js"></script>
+<script>
+// ====== PASO FIREBASE: pega aquí tus datos (Consola Firebase > Configuración del proyecto) ======
+const FIREBASE_CONFIG = { apiKey: "AIzaSyCdeQN52QXP2-T5NWKYwZ9OWz6SQDteEUg", authDomain: "instafish-dea74.firebaseapp.com", projectId: "instafish-dea74", appId: "1:970821898333:web:a8ccf3faa985f9fe953db4", messagingSenderId: "970821898333" };
+// Avisos en el móvil (se rellenan al configurar las notificaciones):
+const VAPID = "BCnjJCLYF0Db66w6aqoCQj3Fcw_yMJ1Ec-5Y_vr9_cYiFAx1Ov5qGsfiJhMRPlW3O2k7rkyMxaonD1oEF_KCPuw", PUSH_URL = "https://instafhis-push.leno4795.workers.dev";
+// ================================================================================================
+
+const usaFB = !!FIREBASE_CONFIG.apiKey && typeof firebase !== "undefined";
+if (usaFB) firebase.initializeApp(FIREBASE_CONFIG);
+const db = usaFB ? firebase.firestore() : null;
+let unsub = null;
+document.getElementById("modo").textContent = usaFB ? "Conectado a Firebase ✅" : "Modo demo: las cuentas se guardan solo en este navegador.";
+
+const $ = id => document.getElementById(id);
+const ls = {
+  get(k, d){ try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch(e){ return d; } },
+  set(k, v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch(e){} }
+};
+let user = null;
+const demoPosts = [
+  {u:"capitan_luis", e:"Lubina", l:"Tarifa", t:"Mañana espectacular al amanecer 🌅", f:"", m:2},
+  {u:"marta_pesca", e:"Dorada", l:"Cádiz", t:"Primera dorada del año, a la plancha!", f:"", m:5}
+];
+
+async function auth(nuevo){
+  const em = $("em").value.trim(), pw = $("pw").value;
+  $("msg").textContent = "";
+  if (!em || pw.length < 6) { $("msg").textContent = "Escribe un correo y una contraseña de 6+ caracteres."; return; }
+  try {
+    if (usaFB) {
+      const r = nuevo ? await firebase.auth().createUserWithEmailAndPassword(em, pw)
+                      : await firebase.auth().signInWithEmailAndPassword(em, pw);
+      user = r.user.email;
+    } else {
+      const us = ls.get("if_users", {});
+      if (nuevo) { if (us[em]) throw new Error("Ese correo ya existe"); us[em] = pw; ls.set("if_users", us); }
+      else if (us[em] !== pw) throw new Error("Correo o contraseña incorrectos");
+      user = em;
+    }
+    ls.set("if_user", user); entrar();
+  } catch(e){ $("msg").textContent = e.message; }
+}
+async function salir(){ try { await quitarPush(); } catch(e){} if (unN) { unN(); unN = null; } if (unC) { unC(); unC = null; } if (unsub) { unsub(); unsub = null; } if (usaFB) firebase.auth().signOut(); ls.set("if_user", null); user = null; $("app").classList.add("hidden"); $("login").classList.remove("hidden"); }
+function entrar(){ $("login").classList.add("hidden"); $("app").classList.remove("hidden"); if (usaFB) { escucharNotifs(); refrescarPush(); } if (pid && !pidHecho && usaFB) { pidHecho = true; ir("feed", true); abrirPost(pid); } else ir("feed"); }
+
+function ir(v, quieto){ document.body.classList.toggle("fv", v === "feed");
+  ["feed","nuevo","premium","perfil","msg"].forEach(x => $("v-"+x).classList.toggle("hidden", x !== v));
+  document.querySelectorAll("nav button").forEach(b => b.classList.toggle("on", b.dataset.v === v));
+  if (v === "feed" && !quieto) pintarFeed(); if (v === "nuevo" && !$("fec").value) $("fec").value = new Date().toLocaleDateString("sv-SE"); if (v === "premium") pintarPro();
+}
+
+function esc(s){ return String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+function dibujar(todos){
+  const st = $("feed").scrollTop;
+  if (!todos.length) { $("feed").innerHTML = '<p class="box mu" style="padding-top:70px">Aún no hay capturas. ¡Sube la primera!</p>'; return; }
+  $("feed").innerHTML = todos.map(p => {
+    const lk = p.likes ? p.likes.length : (p.m || 0), yo = usaFB && p.likes && p.likes.includes(user), id = esc(p.id || ""), u = esc(p.uid || ""), mio = usaFB && p.uid === uid();
+    const media = p.v ? `<video src="${esc(p.v)}" poster="${esc(p.f)}" controls playsinline loop muted preload="metadata"></video>` : p.f ? `<img src="${esc(p.f)}" alt="">` : `<div style="height:100%;display:grid;place-items:center;font-size:90px">🐟</div>`;
+    return `<div class="vp">${media}<div class="rc">
+      ${u ? `<div style="position:relative;margin-bottom:10px"><div class="av" data-u="${u}" onclick="verPerfil('${u}')" style="cursor:pointer">🎣</div>${mio || misSig.has(p.uid) ? "" : `<span class="mas" onclick="seguir('${u}',false,true);this.remove()">+</span>`}</div>` : ""}
+      <button onclick="like('${id}',this)" data-n="${lk}" data-y="${yo ? 1 : 0}" data-o="${u}">${pez(yo)}<small>${lk}</small></button>
+      <button onclick="verCom('${id}')">💬<small id="cn-${id}">0</small></button>
+      <button onclick="guardar('${id}',this)">${misGuard.has(p.id) ? "📌" : "🔖"}</button>
+      <button onclick="compartir('${id}')"><svg viewBox="0 0 24 22"><path d="M23 9L14 1v5C6 7 2 12 1 21c3-4 7-6 13-6v5z" fill="#fff"/></svg><small>Compartir</small></button>
+      ${mio ? `<button onclick="borrarPost('${id}')" aria-label="Borrar">🗑</button>` : ""}
+    </div><div class="inf"><b class="nom" data-u="${u}" ${u ? `style="cursor:pointer;font-size:18px" onclick="verPerfil('${u}')"` : 'style="font-size:18px"'}>@${esc(p.u)}</b> ${p.e ? `<span class="tag">${esc(p.e)}</span>` : ""}<div style="margin-top:4px">${fmt(p.t || "")}</div><div style="font-size:12px;opacity:.85;margin-top:2px">${p.l ? "📍 " + esc(p.l) : ""}</div></div></div>`;
+  }).join("");
+  $("feed").scrollTop = st;
+  document.querySelectorAll(".vp").forEach(x => io.observe(x));
+  if (usaFB) { todos.forEach(p => p.id && pintarCom(p.id)); nombres(); }
+}
+function like(id, b){
+  if (usaFB && id) {
+    const yo = b.dataset.y === "1", F = firebase.firestore.FieldValue;
+    db.collection("posts").doc(id).update({likes: yo ? F.arrayRemove(user) : F.arrayUnion(user)}); if (!yo) notif(b.dataset.o, "like", id);
+  } else { b.dataset.n = +b.dataset.n + 1; b.innerHTML = pez(true) + "<small>" + b.dataset.n + "</small>"; }
+}
+
+function reducir(file, w){ w = w || 700;
+  return new Promise(ok => {
+    const r = new FileReader();
+    r.onload = () => { const im = new Image(); im.onload = () => {
+      const k = Math.min(1, w / im.width), c = document.createElement("canvas");
+      c.width = im.width * k; c.height = im.height * k; c.getContext("2d").drawImage(im, 0, 0, c.width, c.height);
+      ok(c.toDataURL("image/jpeg", .6)); }; im.src = r.result; };
+    r.readAsDataURL(file);
+  });
+}
+async function condiciones(d, lugar){
+  let z = null;
+  for (const q of [lugar, ($("lug").value || "").trim()]) {
+    if (!q) continue;
+    try { const r = await (await fetch("https://geocoding-api.open-meteo.com/v1/search?count=1&language=es&name=" + encodeURIComponent(q))).json(); if (r.results) { z = {lat:r.results[0].latitude, lon:r.results[0].longitude}; break; } } catch(e){}
+  }
+  z = z || ls.get("if_zona", null);
+  const luna = faseLuna(edadLuna(new Date(d + "T12:00")));
+  if (!z) return luna;
+  try {
+    const rec = (Date.now() - new Date(d)) / 864e5 < 85;
+    const r = await (await fetch(`https://${rec ? "api" : "archive-api"}.open-meteo.com/v1/${rec ? "forecast" : "archive"}?latitude=${z.lat}&longitude=${z.lon}&start_date=${d}&end_date=${d}&hourly=temperature_2m,pressure_msl,wind_speed_10m,precipitation&timezone=auto`)).json();
+    const a = x => { const v = (r.hourly[x] || []).filter(n => n != null); return v.length ? v.reduce((s, n) => s + n, 0) / v.length : null; };
+    const t = a("temperature_2m"), w = a("wind_speed_10m"), p = a("pressure_msl"), ll = (r.hourly.precipitation || []).reduce((s, n) => s + (n || 0), 0);
+    return [t != null ? Math.round(t) + "°C" : "", w != null ? "viento " + Math.round(w) + " km/h" : "", p != null ? Math.round(p) + " hPa" : "", "lluvia " + ll.toFixed(1) + " mm", luna].filter(Boolean).join(" · ");
+  } catch(e){ return luna; }
+}
+async function publicar(){
+  const b = $("gbtn"); b.disabled = true; b.textContent = "Guardando… (un vídeo puede tardar)";
+  try { await publicar0(); } finally { b.disabled = false; b.textContent = "Guardar captura"; }
+}
+async function publicar0(){
+  const f = $("foto").files[0], d = $("fec").value || new Date().toLocaleDateString("sv-SE"), pb = $("pubf").checked, esp = $("esp").value.trim();
+  if (!esp) { alert("Pon la especie."); return; }
+  const esVid = !!f && f.type.startsWith("video/");
+  if (esVid && f.size > 60e6) { alert("El vídeo pesa más de 60 MB. Prueba con uno más corto."); return; }
+  let vid = "", img = "";
+  try { if (esVid) { const r = await subirVid(f); vid = r.v; img = r.p; } else if (f) img = await reducir(f); }
+  catch(e){ alert("No se pudo subir el archivo: " + e.message); return; }
+  const p = {u:(user || "yo").split("@")[0], e:esp, l:$("lug").value.trim(), t:$("txt").value.trim(), f:img, v:vid, d};
+  try {
+    if (usaFB) {
+      p.uid = uid(); const pf = await db.collection("users").doc(p.uid).get();
+      if (pf.exists && pf.data().n) p.u = pf.data().n;
+      p.pub = !!(pf.exists && pf.data().pub); p.likes = []; p.c = firebase.firestore.FieldValue.serverTimestamp();
+      const lp = $("lp").value.trim(), k = await condiciones(d, lp);
+      const pid = pb ? (await db.collection("posts").add(p)).id : "";
+      if (pid) menciones(p.t, pid);
+      await db.collection("users").doc(p.uid).collection("catches").add({d, e:esp, l:lp || p.l, egi:$("egi").value.trim(), t:p.t, n:$("npv").value.trim(), k, f: esVid ? img : (f ? await reducir(f, 300) : ""), pid});
+    } else if (pb) { p.m = 0; const a = ls.get("if_posts", []); a.unshift(p); ls.set("if_posts", a.slice(0, 15)); }
+  } catch(e){ alert("No se pudo guardar: " + e.message); return; }
+  ["foto","esp","lug","txt","fec","egi","lp","npv"].forEach(i => $(i).value = "");
+  if (!pb) alert("Captura guardada en tu calendario privado.");
+  ir("feed");
+}
+async function borrarPost(id){
+  if (!confirm("¿Borrar esta publicación? Seguirá en tu calendario privado.")) return;
+  try { await db.collection("posts").doc(id).delete(); } catch(e){ alert("No se pudo borrar: " + e.message); return; }
+  pintarFeed();
+}
+async function borrarCap(id){
+  if (!confirm("¿Borrar esta captura de tu calendario?")) return;
+  await db.collection("users").doc(uid()).collection("catches").doc(id).delete(); pintarCal();
+}
+
+function activar(){ ls.set("if_premium", true); pintarPro(); }
+function edadLuna(d){ return (((d.getTime() - Date.UTC(2000,0,6,18,14)) / 864e5) % 29.530588853 + 29.530588853) % 29.530588853; }
+function faseLuna(a){
+  const n = ["🌑 Nueva","🌒 Creciente","🌓 Cuarto creciente","🌔 Gibosa creciente","🌕 Llena","🌖 Gibosa menguante","🌗 Cuarto menguante","🌘 Menguante"];
+  return n[Math.floor(((a / 29.530588853) * 8 + .5)) % 8];
+}
+const uid = () => firebase.auth().currentUser.uid;
+let pTab = "grid";
+async function verPerfil(id, tab){
+  ir("perfil"); const el = $("v-perfil"); pTab = tab || "grid";
+  if (!usaFB) { el.innerHTML = '<p class="mu">Los perfiles necesitan Firebase conectado.</p>'; return; }
+  id = id || uid(); const me = id === uid(), R = db.collection("users").doc(id), P = x => ({id:x.id, ...x.data()});
+  const [u, fs, ps, ss] = await Promise.all([R.get(), R.collection("followers").get(), db.collection("posts").where("uid","==",id).get(), db.collection("stories").where("uid","==",id).get().catch(() => ({docs:[]}))]);
+  const d = u.exists ? u.data() : {}, sigo = fs.docs.some(x => x.id === uid());
+  const nf = me ? (await R.collection("following").get()).size : (d.nf || 0);
+  const posts = ps.docs.map(P).sort((a, b) => (b.c ? b.c.seconds : 0) - (a.c ? a.c.seconds : 0));
+  const likes = posts.reduce((s, p) => s + (p.likes ? p.likes.length : 0), 0);
+  const hist = ss.docs.map(P).filter(x => x.c && Date.now() - x.c.seconds * 1000 < 864e5);
+  let lista = posts;
+  if (me && pTab === "sav") lista = (await Promise.all([...misGuard].map(i => db.collection("posts").doc(i).get()))).filter(x => x.exists).map(P);
+  if (me && pTab === "lik") lista = (await db.collection("posts").where("likes","array-contains",user).limit(60).get()).docs.map(P);
+  const av = `<div style="position:relative;flex:none"><div onclick="${hist.length ? `verHist('${id}')` : me ? "$('his').click()" : ""}" style="width:96px;height:96px;border-radius:50%;overflow:hidden;border:3px solid ${hist.length ? "var(--ac)" : "var(--pr)"};background:var(--bd);display:grid;place-items:center;font-size:40px;cursor:pointer">${d.av ? `<img src="${esc(d.av)}" style="width:100%;height:100%;object-fit:cover">` : "🎣"}</div>${me ? `<div onclick="$('his').click()" style="position:absolute;right:-2px;bottom:-2px;width:30px;height:30px;border-radius:50%;background:var(--pr);color:#fff;font-size:22px;display:grid;place-items:center;border:2px solid #0a2a38;cursor:pointer">+</div>` : ""}</div>`;
+  const tb = (k, ic) => `<button onclick="verPerfil('${id}','${k}')" style="background:none;border:0;padding:10px 22px;font-size:20px;color:var(--tx);cursor:pointer;border-bottom:2px solid ${pTab === k ? "var(--pr)" : "transparent"}">${ic}</button>`;
+  const st = (n, t, k) => `<div style="cursor:pointer" onclick="listaGente('${id}','${k}')"><b style="font-size:22px">${n}</b><div class="mu">${t}</div></div>`;
+  el.innerHTML = `<input type="file" id="avi" accept="image/*" class="hidden" onchange="cambiarAvatar(this)"><input type="file" id="his" accept="image/*" class="hidden" onchange="subirHist(this)">
+  <div style="display:flex;justify-content:space-between;align-items:center;gap:12px"><div><h2 style="font-size:28px">${esc(d.n||"Pescador")}</h2><p class="mu">${d.nh ? "@" + esc(d.nh) + " · " : ""}🎣 ${esc(d.t||"Sin especificar")}</p></div>${av}</div>
+  <div style="display:flex;gap:26px;margin:14px 0">${st(nf,"Siguiendo","following")}${st(fs.size,"Seguidores","followers")}${st(likes,"Me gusta","")}</div>
+  <p style="margin:8px 0">${fmt(d.b||"")}</p>` +
+  (me ? `<button class="btn s" onclick="$('ep').classList.toggle('hidden')">✏️ Editar perfil</button> <button class="btn s" onclick="ajustesNotif()">🔔 Avisos en el móvil</button>
+    <div id="ep" class="card pad hidden"><input id="pn" placeholder="Nombre" value="${esc(d.n||"")}"><input id="pt" placeholder="Tipo de pesca (ej. Spinning, surfcasting)" value="${esc(d.t||"")}"><textarea id="pb" data-mn rows="3" placeholder="Descripción">${esc(d.b||"")}</textarea><label class="mu"><input type="checkbox" id="pp" ${d.pub?"checked":""} style="width:auto"> Perfil público: mis capturas se pueden compartir con un enlace</label><br><button class="btn s" onclick="$('avi').click()">📷 Cambiar foto</button> <button class="btn" onclick="guardarPerfil()">Guardar</button></div>`
+      : `<button class="btn${sigo?" s":""}" onclick="seguir('${id}',${sigo})">${sigo?"Siguiendo ✓":"Seguir"}</button> <button class="btn s" onclick="abrirChat('${id}')">✉ Mensaje</button>`) +
+  `<div style="display:flex;justify-content:space-around;border-bottom:1px solid var(--bd);margin:14px -16px 0">${tb("grid","▦")}${me ? tb("sav","🔖") + tb("lik", pez(true)) : ""}</div>
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:2px;margin:0 -16px">${lista.map(p => `<div style="position:relative;aspect-ratio:3/4;background:var(--bd);cursor:pointer" onclick="abrirPost('${p.id}')">${p.f ? `<img src="${esc(p.f)}" style="width:100%;height:100%;object-fit:cover">` : `<div style="display:grid;place-items:center;height:100%;font-size:34px">🐟</div>`}${p.v ? '<span style="position:absolute;right:6px;top:4px;color:#fff;text-shadow:0 1px 3px #000">▶</span>' : ""}<span style="position:absolute;left:6px;bottom:4px;color:#fff;font-size:13px;text-shadow:0 1px 3px #000">${pez(true)} ${p.likes ? p.likes.length : 0}</span></div>`).join("")}</div>` +
+  (lista.length ? "" : '<p class="mu" style="margin-top:16px">Aquí aún no hay capturas.</p>');
+}
+async function abrirPost(id){
+  const d = await db.collection("posts").doc(id).get(); if (!d.exists) return;
+  if (unsub) { unsub(); unsub = null; } ir("feed", true); dibujar([{id:d.id, ...d.data()}]);
+}
+async function cambiarAvatar(inp){ const f = inp.files[0]; if (!f) return; delete nomCache[uid()]; await db.collection("users").doc(uid()).set({av: await reducir(f, 200)}, {merge:true}); verPerfil(); }
+let pidHecho = false;
+let modoFeed = "todas", misGuard = new Set(), misSig = new Set();
+function modo(m){ modoFeed = m; document.querySelectorAll("#ftop span[id]").forEach(x => x.classList.toggle("on", x.id === "t-" + m)); pintarFeed(); }
+async function pintarFeed(){
+  if (!usaFB) { dibujar([...ls.get("if_posts", []), ...demoPosts]); return; }
+  if (unsub) { unsub(); unsub = null; }
+  const me = db.collection("users").doc(uid()), fallo = e => { $("feed").innerHTML = '<p class="box mu">No se pudo cargar: ' + esc(e.message) + '</p>'; };
+  try {
+    misGuard = new Set((await me.collection("saved").get()).docs.map(d => d.id));
+    misSig = new Set((await me.collection("following").get()).docs.map(d => d.id));
+    if (modoFeed === "todas") {
+      unsub = db.collection("posts").orderBy("c","desc").limit(30).onSnapshot(sn => dibujar(sn.docs.map(d => ({id:d.id, ...d.data()}))), fallo);
+    } else if (modoFeed === "guard") {
+      const ps = await Promise.all([...misGuard].map(id => db.collection("posts").doc(id).get()));
+      dibujar(ps.filter(d => d.exists).map(d => ({id:d.id, ...d.data()})));
+    } else {
+      const ids = (await me.collection("following").get()).docs.map(d => d.id).slice(0, 10);
+      if (!ids.length) { dibujar([]); return; }
+      const s = await db.collection("posts").where("uid","in",ids).limit(30).get();
+      dibujar(s.docs.map(d => ({id:d.id, ...d.data()})).sort((a, b) => (b.c ? b.c.seconds : 0) - (a.c ? a.c.seconds : 0)));
+    }
+  } catch(e){ fallo(e); }
+}
+async function guardar(id, b){
+  if (!usaFB || !id) return; const r = db.collection("users").doc(uid()).collection("saved").doc(id);
+  if (misGuard.has(id)) { await r.delete(); misGuard.delete(id); } else { await r.set({c:firebase.firestore.FieldValue.serverTimestamp()}); misGuard.add(id); }
+  if (modoFeed === "guard") pintarFeed(); else b.textContent = misGuard.has(id) ? "📌" : "🔖";
+}
+async function compartir(id){
+  let pub = false;
+  try { const d = await db.collection("posts").doc(id).get(); if (d.exists) { pub = !!d.data().pub; notif(d.data().uid, "share", id); } } catch(e){}
+  const url = location.origin + location.pathname + "?post=" + id;
+  const aviso = pub ? "Enlace copiado. Cualquiera con el enlace puede ver esta captura." : "Enlace copiado. Tu perfil es privado: solo lo verán personas con cuenta en InstaFish.";
+  try { if (navigator.share) { await navigator.share({title:"InstaFish", url}); return; } await navigator.clipboard.writeText(url); alert(aviso); }
+  catch(e){ if (e && e.name === "AbortError") return; prompt("Copia este enlace:", url); }
+}
+async function buscar(){
+  const q = $("bq").value.trim().toLowerCase();
+  if (!q || !usaFB) { $("busq").innerHTML = ""; return; }
+  const s = await db.collection("users").where("nl", ">=", q).where("nl", "<=", q + "\uf8ff").limit(10).get();
+  $("busq").innerHTML = s.docs.map(d => `<div class="card pad" style="cursor:pointer" onclick="$('bbox').classList.add('hidden');verPerfil('${d.id}')"><b>${esc(d.data().n)}</b> <span class="mu">🎣 ${esc(d.data().t||"")}</span></div>`).join("") || '<p class="mu box">No encontré a nadie con ese nombre.</p>';
+}
+const pid = new URLSearchParams(location.search).get("post");
+if (usaFB && pid) db.collection("posts").doc(pid).get().then(d => { if (d.exists) { const p = d.data(); $("comp").innerHTML = `<div class="card">${p.f ? `<img src="${esc(p.f)}" alt="">` : ""}<div class="pad"><b>@${esc(p.u)}</b> ${p.e ? `<span class="tag">${esc(p.e)}</span>` : ""}<p>${esc(p.t||"")}</p><p class="mu">Crea tu cuenta o entra para seguir a @${esc(p.u)}.</p></div></div>`; } }).catch(() => {});
+async function guardarPerfil(){
+  const n = $("pn").value.trim(), pub = $("pp").checked; delete nomCache[uid()];
+  const h = hn(n);
+  if (h) { const q = await db.collection("users").where("nh","==",h).limit(2).get(); if (q.docs.some(x => x.id !== uid())) { alert("Ese nombre ya lo usa otra persona. Prueba con otro."); return; } }
+  await db.collection("users").doc(uid()).set({n, nl:n.toLowerCase(), nh:h, t:$("pt").value.trim(), b:$("pb").value.trim(), pub}, {merge:true});
+  const ps = await db.collection("posts").where("uid","==",uid()).get(), bt = db.batch();
+  ps.docs.forEach(d => bt.update(d.ref, {pub})); await bt.commit(); verPerfil();
+}
+async function seguir(id, sigo, quieto){
+  const F = firebase.firestore.FieldValue, t = db.collection("users").doc(id).collection("followers").doc(uid()), m = db.collection("users").doc(uid()).collection("following").doc(id), b = db.batch();
+  if (sigo) { b.delete(t); b.delete(m); } else { b.set(t, {c:F.serverTimestamp()}); b.set(m, {c:F.serverTimestamp()}); }
+  b.set(db.collection("users").doc(uid()), {nf: F.increment(sigo ? -1 : 1)}, {merge:true}); await b.commit(); if (!sigo) notif(id, "follow", ""); if (!quieto) verPerfil(id);
+}
+
+const pez = on => `<svg width="26" height="24" viewBox="0 0 32 30" style="vertical-align:middle"><path d="M16 28S2 19 2 9.5C2 5 5.5 2 9.5 2c3 0 5.3 1.6 6.5 4C17.2 3.6 19.5 2 22.5 2 26.5 2 30 5 30 9.5 30 19 16 28 16 28z" fill="${on ? "#ff4d6d" : "none"}" stroke="${on ? "#ff4d6d" : "#fff"}" stroke-width="2" stroke-linejoin="round"/><path d="M9 14.5c2.8-4 8-4 11 0l3-2.6v5.6l-3-2.6c-3 4-8.2 4-11 0z" fill="#fff"/><circle cx="12.2" cy="13.6" r="1" fill="${on ? "#ff4d6d" : "#555"}"/></svg>`;
+const nomCache = {}, avCache = {};
+const io = new IntersectionObserver(es => es.forEach(e => { const v = e.target.querySelector("video"); if (!v) return; if (e.isIntersecting) { v.muted = true; v.play().catch(() => {}); } else v.pause(); }), {threshold:.7});
+function verCom(id){ if (!usaFB || !id) return; mostrar('<div id="cm-' + id + '"></div>'); pintarCom(id, true); }
+async function nombres(){
+  const els = [...document.querySelectorAll(".nom")].filter(e => e.dataset.u);
+  const ids = [...new Set(els.map(e => e.dataset.u))].filter(i => !(i in nomCache));
+  await Promise.all(ids.map(async i => { try { const d = await db.collection("users").doc(i).get(); nomCache[i] = d.exists && d.data().n ? d.data().n : ""; avCache[i] = (d.exists && d.data().av) || ""; } catch(e){ nomCache[i] = ""; } }));
+  els.forEach(e => { if (nomCache[e.dataset.u]) e.textContent = nomCache[e.dataset.u]; });
+  document.querySelectorAll(".av[data-u]").forEach(e => { const a = avCache[e.dataset.u]; if (a) e.innerHTML = '<img src="' + esc(a) + '" style="width:100%;height:100%;object-fit:cover">'; });
+}
+const mostrar = h => { $("ovc").innerHTML = h; $("ov").classList.remove("hidden"); };
+const cerrar = () => { if (unChat) { unChat(); unChat = null; } $("ov").classList.add("hidden"); };
+const miNombre = () => nomCache[uid()] || user.split("@")[0];
+async function listaGente(id, tipo){
+  if (!tipo) return;
+  const s = await db.collection("users").doc(id).collection(tipo).limit(50).get();
+  const us = await Promise.all(s.docs.map(d => db.collection("users").doc(d.id).get()));
+  mostrar(`<h3>${tipo === "followers" ? "Seguidores" : "Siguiendo"}</h3>` + (us.map(u => { const d = u.exists ? u.data() : {}; return `<div class="card pad" style="cursor:pointer;display:flex;gap:10px;align-items:center" onclick="cerrar();verPerfil('${u.id}')"><div style="width:44px;height:44px;border-radius:50%;overflow:hidden;background:var(--bd);display:grid;place-items:center;flex:none">${d.av ? `<img src="${esc(d.av)}" style="width:100%;height:100%;object-fit:cover">` : "🎣"}</div><div><b>${esc(d.n || "Pescador")}</b><div class="mu">${esc(d.t || "")}</div></div></div>`; }).join("") || '<p class="mu">Nadie todavía.</p>'));
+}
+let HI = [], hi = 0;
+function pintaHist(){
+  const x = HI[hi];
+  mostrar(`<p class="mu">${esc(x.u || "")} · ${hi + 1}/${HI.length}${x.uid === uid() ? ` · <span style="cursor:pointer" onclick="borrarHist('${x.id}')">🗑 Borrar</span>` : ""}</p><img src="${esc(x.f)}" style="width:100%;border-radius:12px;cursor:pointer" onclick="sigHist()"><p class="mu">Toca la imagen para ver la siguiente</p>`);
+}
+function sigHist(){ hi++; if (hi >= HI.length) { cerrar(); return; } pintaHist(); }
+async function verHist(id){
+  const s = await db.collection("stories").where("uid","==",id).get();
+  HI = s.docs.map(d => ({id:d.id, ...d.data()})).filter(x => x.c && Date.now() - x.c.seconds * 1000 < 864e5).sort((a, b) => a.c.seconds - b.c.seconds);
+  if (!HI.length) return; hi = 0; pintaHist();
+}
+async function subirHist(inp){
+  const f = inp.files[0]; if (!f) return;
+  await db.collection("stories").add({uid:uid(), u:miNombre(), f:await reducir(f, 600), c:firebase.firestore.FieldValue.serverTimestamp()});
+  verPerfil();
+}
+async function borrarHist(id){ await db.collection("stories").doc(id).delete(); cerrar(); verPerfil(); }
+let notifs = [], unN = null, unC = null, chatsData = [], unChat = null;
+async function notif(to, t, pid){
+  if (!usaFB || !to || to === uid()) return;
+  try { await db.collection("users").doc(to).collection("notifs").add({t, from:uid(), fn:miNombre(), pid:pid || "", c:firebase.firestore.FieldValue.serverTimestamp()}); } catch(e){}
+  pushTo(to, t, pid);
+}
+function escucharNotifs(){
+  if (unN) unN(); if (unC) unC();
+  unN = db.collection("users").doc(uid()).collection("notifs").orderBy("c","desc").limit(30).onSnapshot(s => { notifs = s.docs.map(d => ({id:d.id, ...d.data()})); badge(); pintarMsgs(); }, () => {});
+  unC = db.collection("chats").where("members","array-contains",uid()).onSnapshot(s => { chatsData = s.docs.map(d => ({id:d.id, ...d.data()})).filter(c => c.lastAt).sort((a, b) => b.lastAt.seconds - a.lastAt.seconds); badge(); pintarMsgs(); }, () => {});
+}
+const TXT = {like:"🐟 dio me gusta a tu captura", follow:"👤 empezó a seguirte", comment:"💬 comentó tu captura", share:"🔗 compartió tu captura", mention:"🏷️ te etiquetó"};
+function verNotifs(){
+  ls.set("if_visto", Date.now()); badge(); pintarMsgs();
+  mostrar('<h3>Notificaciones <span class="mu" style="cursor:pointer;font-size:14px" onclick="ajustesNotif()">⚙️ Ajustes</span></h3>' + (notifs.map(x => `<div class="card pad" style="cursor:pointer" onclick="cerrar();${x.t === "follow" ? `verPerfil('${esc(x.from)}')` : `abrirPost('${esc(x.pid)}')`}"><b>${esc(x.fn || "Alguien")}</b> ${TXT[x.t] || ""}<div class="mu">${x.c ? new Date(x.c.seconds * 1000).toLocaleString("es-ES") : ""}</div></div>`).join("") || '<p class="mu">Aún no tienes notificaciones.</p>'));
+}
+const hn = n => n.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9_]/g, "");
+const fmt = t => esc(t).replace(/@([\p{L}\p{N}_]+)/gu, (m, h) => `<a style="color:var(--pr);cursor:pointer" onclick="irHandle('${hn(h)}')">@${h}</a>`);
+async function irHandle(h){
+  const s = await db.collection("users").where("nh","==",h).limit(1).get();
+  if (s.empty) { alert("No encuentro a @" + h); return; }
+  cerrar(); verPerfil(s.docs[0].id);
+}
+async function menciones(t, pid){
+  const hs = [...new Set((t.match(/@[\p{L}\p{N}_]+/gu) || []).map(x => hn(x.slice(1))))].filter(Boolean).slice(0, 5);
+  for (const h of hs) { const s = await db.collection("users").where("nh","==",h).limit(1).get(); if (!s.empty) notif(s.docs[0].id, "mention", pid); }
+}
+const CLD = "y1mtuxeg", PRE = "Instafish";
+async function subirVid(f){
+  const fd = new FormData(); fd.append("file", f); fd.append("upload_preset", PRE);
+  const r = await fetch(`https://api.cloudinary.com/v1_1/${CLD}/video/upload`, {method:"POST", body:fd});
+  const j = await r.json();
+  if (!j.secure_url) throw new Error((j.error && j.error.message) || "error desconocido");
+  return {v: j.secure_url.replace("/upload/", "/upload/f_mp4,vc_h264,q_auto/").replace(/\.[a-z0-9]+$/i, ".mp4"), p: j.secure_url.replace("/upload/", "/upload/so_0,w_700/").replace(/\.[a-z0-9]+$/i, ".jpg")};
+}
+let mnEl = null, mnT = null;
+const sinLeer = c => c.ls && c.ls !== uid() && c.lastAt && c.lastAt.seconds * 1000 > +ls.get("if_chat_" + c.id, 0);
+function badge(){
+  const v = +ls.get("if_visto", 0), n = notifs.filter(x => x.c && x.c.seconds * 1000 > v).length + chatsData.filter(sinLeer).length;
+  $("nb").textContent = n; $("nb").classList.toggle("hidden", !n);
+}
+const cidOf = o => [uid(), o].sort().join("_");
+function verMsgs(){
+  ir("msg");
+  if (!usaFB) { $("v-msg").innerHTML = '<p class="mu">Los mensajes necesitan Firebase conectado.</p>'; return; }
+  $("v-msg").innerHTML = '<h2>Mensajes</h2><div class="card pad" style="cursor:pointer" onclick="verNotifs()">🔔 <b>Notificaciones</b> <span id="nbn"></span></div><input id="mq" placeholder="🔍 Buscar un pescador para escribirle" oninput="buscarMsg()"><div id="mres"></div><div id="chl"></div>';
+  pintarMsgs();
+}
+function pintarMsgs(){
+  if (!$("chl")) return;
+  const v = +ls.get("if_visto", 0), n = notifs.filter(x => x.c && x.c.seconds * 1000 > v).length;
+  $("nbn").innerHTML = n ? `<span class="tag">${n}</span>` : "";
+  $("chl").innerHTML = chatsData.map(c => { const o = c.members.find(m => m !== uid()) || "";
+    return `<div class="card pad" style="display:flex;gap:12px;align-items:center;cursor:pointer" onclick="abrirChat('${esc(o)}')"><div class="av" data-u="${esc(o)}">🎣</div><div style="flex:1;min-width:0"><b class="nom" data-u="${esc(o)}">Pescador</b><div class="mu" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${c.ls === uid() ? "Tú: " : ""}${esc(c.last || "")}</div></div>${sinLeer(c) ? '<span class="tag">●</span>' : ""}</div>`; }).join("") ||
+    '<p class="mu">Aún no tienes conversaciones. Busca a un pescador aquí arriba, o entra en su perfil y pulsa ✉ Mensaje.</p>';
+  nombres();
+}
+async function buscarMsg(){
+  const q = $("mq").value.trim().toLowerCase(); if (!q) { $("mres").innerHTML = ""; return; }
+  const s = await db.collection("users").where("nl", ">=", q).where("nl", "<=", q + "").limit(8).get();
+  $("mres").innerHTML = s.docs.filter(d => d.id !== uid() && d.data().n).map(d => `<div class="card pad" style="cursor:pointer" onclick="abrirChat('${d.id}')"><b>${esc(d.data().n)}</b> <span class="mu">🎣 ${esc(d.data().t || "")}</span></div>`).join("") || '<p class="mu">No encontré a nadie con ese nombre.</p>';
+}
+async function abrirChat(o){
+  if (!usaFB || !o) return;
+  const cid = cidOf(o), R = db.collection("chats").doc(cid);
+  try { await R.set({members: [uid(), o].sort()}, {merge:true}); } catch(e){ alert("No se pudo abrir el chat: " + e.message); return; }
+  const od = await db.collection("users").doc(o).get(), nm = od.exists && od.data().n ? od.data().n : "Pescador";
+  mostrar(`<h3 style="cursor:pointer" onclick="cerrar();verPerfil('${esc(o)}')">✉ ${esc(nm)}</h3><div id="msgs" style="height:55vh;overflow:auto;display:flex;flex-direction:column;gap:6px;padding:8px 0"></div><div style="display:flex;gap:6px"><input id="mi" placeholder="Escribe un mensaje…" onkeydown="if(event.key==='Enter')enviarMsg('${esc(o)}')"><button class="btn" onclick="enviarMsg('${esc(o)}')">Enviar</button></div>`);
+  ls.set("if_chat_" + cid, Date.now()); badge();
+  unChat = R.collection("messages").orderBy("c").limitToLast(100).onSnapshot(s => {
+    const el = $("msgs"); if (!el) return;
+    el.innerHTML = s.docs.map(d => { const m = d.data(), yo = m.from === uid(); return `<div style="align-self:${yo ? "flex-end" : "flex-start"};max-width:80%;background:${yo ? "var(--pr)" : "var(--card)"};color:${yo ? "#fff" : "var(--tx)"};padding:8px 12px;border-radius:14px">${esc(m.t)}</div>`; }).join("") || '<p class="mu">Escribe el primer mensaje 👋</p>';
+    el.scrollTop = el.scrollHeight; ls.set("if_chat_" + cid, Date.now()); badge();
+  }, () => {});
+}
+async function enviarMsg(o){
+  const i = $("mi"), t = i.value.trim(); if (!t) return; i.value = "";
+  const cid = cidOf(o), F = firebase.firestore.FieldValue;
+  try {
+    await db.collection("chats").doc(cid).set({members: [uid(), o].sort(), last: t.slice(0, 80), ls: uid(), lastAt: F.serverTimestamp()}, {merge:true});
+    await db.collection("chats").doc(cid).collection("messages").add({from: uid(), t: t.slice(0, 1000), c: F.serverTimestamp()});
+    pushTo(o, "msg", "");
+  } catch(e){ alert("No se pudo enviar: " + e.message); }
+}
+function ocultaMn(){ $("mnb").classList.add("hidden"); }
+function elegirMn(h){
+  const t = mnEl; if (!t) return;
+  const p = t.selectionStart, ant = t.value.slice(0, p).replace(/@([\p{L}\p{N}_]+)$/u, "@" + h + " ");
+  t.value = ant + t.value.slice(p); t.focus(); t.selectionStart = t.selectionEnd = ant.length; ocultaMn();
+}
+document.addEventListener("input", e => {
+  const t = e.target;
+  if (!usaFB || !t || !t.hasAttribute || !t.hasAttribute("data-mn")) return;
+  clearTimeout(mnT);
+  const m = t.value.slice(0, t.selectionStart).match(/@([\p{L}\p{N}_]+)$/u), q = m ? hn(m[1]) : "";
+  if (!q) { ocultaMn(); return; }
+  mnT = setTimeout(async () => {
+    try {
+      const s = await db.collection("users").where("nh", ">=", q).where("nh", "<=", q + "").limit(5).get(), b = $("mnb");
+      const us = s.docs.filter(d => d.data().n && d.id !== uid());
+      if (!us.length) { ocultaMn(); return; }
+      mnEl = t;
+      b.innerHTML = us.map(d => `<div style="padding:10px 14px;cursor:pointer;border-bottom:1px solid var(--bd)" onpointerdown="event.preventDefault();elegirMn('${esc(d.data().nh)}')"><b>${esc(d.data().n)}</b> <span class="mu">@${esc(d.data().nh)}</span></div>`).join("");
+      const r = t.getBoundingClientRect();
+      b.style.left = Math.max(8, r.left) + "px"; b.style.width = Math.min(300, Math.max(r.width, 200)) + "px";
+      if (window.innerHeight - r.bottom < 220) { b.style.top = "auto"; b.style.bottom = (window.innerHeight - r.top + 4) + "px"; } else { b.style.bottom = "auto"; b.style.top = (r.bottom + 4) + "px"; }
+      b.classList.remove("hidden");
+    } catch(err){}
+  }, 150);
+});
+document.addEventListener("focusout", () => setTimeout(ocultaMn, 250));
+const TIPOS_NP = {like:"🐟 Me gusta", follow:"👤 Seguidores nuevos", comment:"💬 Comentarios", mention:"🏷️ Etiquetas", share:"🔗 Compartidos", msg:"✉️ Mensajes privados"};
+const swReg = () => navigator.serviceWorker.register("firebase-messaging-sw.js");
+const pushSoportado = () => "serviceWorker" in navigator && "Notification" in window && "PushManager" in window;
+async function pushTo(to, t, pid){
+  if (!PUSH_URL || !usaFB) return;
+  try {
+    const tok = await firebase.auth().currentUser.getIdToken();
+    await fetch(PUSH_URL, {method:"POST", headers:{"Content-Type":"application/json", "Authorization":"Bearer " + tok}, body: JSON.stringify({to, t, pid: pid || ""})});
+  } catch(e){}
+}
+async function ajustesNotif(){
+  const d = (await db.collection("users").doc(uid()).get()).data() || {}, np = d.np || {};
+  const on = pushSoportado() && ls.get("if_push", false) && Notification.permission === "granted";
+  const fila = (txt, ch, fn) => `<label class="card pad" style="display:flex;justify-content:space-between;align-items:center;gap:10px">${txt}<input type="checkbox" ${ch ? "checked" : ""} style="width:auto" onchange="${fn}"></label>`;
+  mostrar("<h3>🔔 Avisos en el móvil</h3>" + (
+    !VAPID || !PUSH_URL ? '<p class="mu">Todavía no están activados en el servidor de InstaFish.</p>' :
+    !pushSoportado() ? '<p class="mu">Este navegador no admite avisos. En iPhone, añade primero la app a la pantalla de inicio (Compartir → Añadir a pantalla de inicio) y ábrela desde ahí. Hace falta iOS 16.4 o superior.</p>' :
+    fila("<b>Recibir avisos en este dispositivo</b>", on, "togglePush(this)") + '<p class="mu">Elige cuáles quieres recibir:</p>' +
+    Object.entries(TIPOS_NP).map(([k, v]) => fila(v, np[k] !== false, `setNp('${k}',this.checked)`)).join("") +
+    '<p class="mu">Para dejar de recibirlos, apaga el primer interruptor.</p>'));
+}
+async function togglePush(cb){
+  try {
+    if (cb.checked) {
+      if (await Notification.requestPermission() !== "granted") { cb.checked = false; alert("El navegador ha bloqueado los avisos. Actívalos en los ajustes del sitio (el candado junto a la dirección → Notificaciones → Permitir) y vuelve a probar."); return; }
+      const tk = await firebase.messaging().getToken({vapidKey: VAPID, serviceWorkerRegistration: await swReg()});
+      if (!tk) throw new Error("no se pudo obtener el permiso");
+      await db.collection("users").doc(uid()).collection("tokens").doc(tk).set({t: tk, c: firebase.firestore.FieldValue.serverTimestamp(), ua: navigator.userAgent.slice(0, 120)});
+      ls.set("if_push_tk", tk); ls.set("if_push", true);
+    } else {
+      const tk = ls.get("if_push_tk", "");
+      try { await firebase.messaging().deleteToken(); } catch(e){}
+      if (tk) await db.collection("users").doc(uid()).collection("tokens").doc(tk).delete();
+      ls.set("if_push", false); ls.set("if_push_tk", "");
+    }
+  } catch(e){ cb.checked = !cb.checked; alert("No se pudo cambiar: " + e.message); }
+}
+function setNp(k, v){ db.collection("users").doc(uid()).set({np: {[k]: v}}, {merge:true}).catch(e => alert("No se pudo guardar: " + e.message)); }
+async function quitarPush(){
+  const tk = ls.get("if_push_tk", "");
+  if (tk && usaFB && firebase.auth().currentUser) { try { await db.collection("users").doc(uid()).collection("tokens").doc(tk).delete(); } catch(e){} }
+  ls.set("if_push", false); ls.set("if_push_tk", "");
+}
+async function refrescarPush(){
+  try {
+    if (!pushSoportado() || !VAPID || !ls.get("if_push", false) || Notification.permission !== "granted") return;
+    const tk = await firebase.messaging().getToken({vapidKey: VAPID, serviceWorkerRegistration: await swReg()}), viejo = ls.get("if_push_tk", "");
+    if (!tk || tk === viejo) return;
+    const T = db.collection("users").doc(uid()).collection("tokens");
+    await T.doc(tk).set({t: tk, c: firebase.firestore.FieldValue.serverTimestamp(), ua: navigator.userAgent.slice(0, 120)});
+    if (viejo) T.doc(viejo).delete().catch(() => {});
+    ls.set("if_push_tk", tk);
+  } catch(e){}
+}
+function lupa(){ const b = $("bbox"); b.classList.toggle("hidden"); if (!b.classList.contains("hidden")) $("bq").focus(); }
+async function pintarCom(id, todos){
+  const el = $("cm-" + id);
+  const s = await db.collection("posts").doc(id).collection("comments").orderBy("c").limit(100).get(), n = s.size;
+  if ($("cn-" + id)) $("cn-" + id).textContent = n;
+  if (!el) return;
+  el.innerHTML = s.docs.slice(0, todos ? n : 3).map(d => `<p style="margin:4px 0"><b>@${esc(d.data().u)}</b> ${fmt(d.data().t)}</p>`).join("") +
+    (n > 3 && !todos ? `<p class="mu" style="cursor:pointer" onclick="pintarCom('${id}',true)">Ver los ${n} comentarios</p>` : "") +
+    `<input id="ci-${id}" data-mn placeholder="Añade un comentario… (@nombre para etiquetar)"><button class="btn s" onclick="enviarCom('${id}')">Enviar</button>`;
+}
+async function enviarCom(id){
+  const t = $("ci-"+id).value.trim(); if (!t) return;
+  await db.collection("posts").doc(id).collection("comments").add({t, u:user.split("@")[0], uid:uid(), c:firebase.firestore.FieldValue.serverTimestamp()});
+  pintarCom(id, true);
+  db.collection("posts").doc(id).get().then(d => d.exists && notif(d.data().uid, "comment", id)).catch(() => {});
+  menciones(t, id);
+}
+
+const LIM = {spinning:[25,1.5], surfcasting:[30,2.5], bote:[20,1], rio:[30,99], mosca:[18,99]};
+let cal = new Date(), caps = [];
+function pintarPro(){
+  const p = ls.get("if_premium", false);
+  $("bloqueo").classList.toggle("hidden", p); $("pro").classList.toggle("hidden", !p);
+  if (!p) return;
+  $("tipo").value = ls.get("if_tipo", "spinning");
+  const z = ls.get("if_zona", null); $("zn").textContent = z ? "📍 " + z.n : "Elige una localidad para ver tu pronóstico.";
+  if (z) cargarPro();
+  cal = new Date(); cal.setDate(1); pintarCal();
+}
+async function buscarZona(){
+  const q = $("zona").value.trim(); if (!q) return;
+  try {
+    const r = await (await fetch("https://geocoding-api.open-meteo.com/v1/search?count=1&language=es&name=" + encodeURIComponent(q))).json();
+    if (!r.results) { $("zn").textContent = "No encuentro ese lugar."; return; }
+    const z = r.results[0]; ls.set("if_zona", {n: z.name + (z.admin1 ? ", " + z.admin1 : ""), lat: z.latitude, lon: z.longitude});
+    $("zn").textContent = "📍 " + z.name; cargarPro();
+  } catch(e){ $("zn").textContent = "No hay conexión con el servicio del tiempo."; }
+}
+async function cargarPro(){
+  const z = ls.get("if_zona", null); if (!z) return;
+  const t = $("tipo").value; ls.set("if_tipo", t); const L = LIM[t];
+  $("pronos").innerHTML = '<p class="mu box">Cargando…</p>';
+  try {
+    const q = `latitude=${z.lat}&longitude=${z.lon}&timezone=auto&forecast_days=7`;
+    const [w, m] = await Promise.all([
+      fetch(`https://api.open-meteo.com/v1/forecast?${q}&current=temperature_2m,pressure_msl,wind_speed_10m&hourly=wind_speed_10m,precipitation_probability`).then(r => r.json()),
+      fetch(`https://marine-api.open-meteo.com/v1/marine?${q}&current=sea_surface_temperature&hourly=wave_height,sea_level_height_msl`).then(r => r.json()).catch(() => ({}))]);
+    const H = w.hourly, M = m.hourly || {}, c = w.current || {}, mc = m.current || {};
+    const av = (a, i) => { if (!a) return null; const v = a.slice(i*24+6, i*24+21).filter(n => n != null); return v.length ? v.reduce((s, n) => s + n, 0) / v.length : null; };
+    let h = "";
+    for (let i = 0; i < 7; i++) {
+      const f = new Date(H.time[i*24]), v = av(H.wind_speed_10m, i) || 0, o = av(M.wave_height, i), r = av(H.precipitation_probability, i) || 0;
+      const lu = edadLuna(new Date(f.getTime() + 12*36e5)), near = Math.min(lu % 14.765, 14.765 - lu % 14.765);
+      const s = Math.max(0, Math.min(100, Math.round(100 - Math.max(0, (v - L[0]) * 3) - Math.max(0, ((o || 0) - L[1]) * 30) - r * .3 + (near < 2 ? 10 : 0))));
+      h += `<div class="card pad"><b>${f.toLocaleDateString("es-ES",{weekday:"long",day:"numeric"})}</b> ${faseLuna(lu).slice(0,2)}<div class="bar"><i style="width:${s}%"></i></div><p class="mu">Índice ${s}/100 · viento ${Math.round(v)} km/h · oleaje ${o == null ? "—" : o.toFixed(1) + " m"} · lluvia ${Math.round(r)}%</p></div>`;
+    }
+    let md = ""; const S = (M.sea_level_height_msl || []).slice(0, 24);
+    if (S.length && S[0] != null) { const lo = Math.min(...S), hi = Math.max(...S); for (let k = 0; k < 24; k += 3) md += `<div class="mu" style="margin-top:6px">${String(k).padStart(2,"0")}:00 · ${S[k].toFixed(2)} m</div><div class="bar"><i style="width:${(S[k]-lo)/(hi-lo||1)*100}%"></i></div>`; }
+    else md = '<p class="mu">Sin datos de marea para esta zona.</p>';
+    $("pronos").innerHTML = `<div class="card pad"><div class="mu">Ahora en ${esc(z.n)}</div><div class="grid" style="margin-top:8px"><div>🌡️ Aire<div class="big">${Math.round(c.temperature_2m)}°C</div></div><div>🌊 Agua<div class="big">${mc.sea_surface_temperature == null ? "—" : Math.round(mc.sea_surface_temperature) + "°C"}</div></div><div>💨 Viento<div class="big">${Math.round(c.wind_speed_10m)} km/h</div></div><div>🧭 Presión<div class="big">${Math.round(c.pressure_msl)} hPa</div></div></div></div><div class="card pad"><div class="mu">Mareas hoy (modelo global, orientativo)</div>${md}</div>` + h + '<p class="mu box">Datos: Open-Meteo. Son estimaciones de modelos meteorológicos y el índice de pesca es orientativo (viento, oleaje, lluvia y luna según tu tipo de pesca): ninguna fuente es 100% exacta.</p>';
+  } catch(e){ $("pronos").innerHTML = '<p class="mu box">No se pudo cargar el pronóstico. Revisa tu conexión.</p>'; }
+}
+
+async function pintarCal(){
+  if (!usaFB) { $("cal").innerHTML = '<p class="mu">Necesita Firebase conectado.</p>'; return; }
+  const s = await db.collection("users").doc(uid()).collection("catches").orderBy("d","desc").limit(500).get();
+  caps = s.docs.map(d => ({id:d.id, ...d.data()})); dibCal();
+}
+function dibCal(){
+  const y = cal.getFullYear(), m = cal.getMonth(), ini = (new Date(y, m, 1).getDay() + 6) % 7, n = new Date(y, m + 1, 0).getDate();
+  const k = d => y + "-" + String(m + 1).padStart(2, "0") + "-" + String(d).padStart(2, "0");
+  let g = "<div></div>".repeat(ini);
+  for (let d = 1; d <= n; d++) g += `<div style="text-align:center;padding:6px 0;border-radius:8px;${caps.some(x => x.d === k(d)) ? "background:var(--ac);color:#fff" : ""}">${d}</div>`;
+  const mes = caps.filter(x => x.d.slice(0, 7) === k(1).slice(0, 7));
+  $("cal").innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center"><button class="btn s" onclick="cal.setMonth(cal.getMonth()-1);dibCal()">◀</button><b>${cal.toLocaleDateString("es-ES",{month:"long",year:"numeric"})}</b><button class="btn s" onclick="cal.setMonth(cal.getMonth()+1);dibCal()">▶</button></div><div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin:10px 0">${g}</div>` +
+    (mes.map(x => `<div class="card pad"><div style="display:flex;justify-content:space-between"><b>${x.d} · ${esc(x.e)}</b><span style="cursor:pointer" onclick="borrarCap('${x.id}')">🗑</span></div>${x.f ? `<img src="${esc(x.f)}" style="width:100%;border-radius:10px;margin:6px 0">` : ""}<p class="mu">📍 ${esc(x.l || "—")}${x.egi ? " · egi " + esc(x.egi) : ""}</p><p class="mu">${esc(x.k || "")}</p>${x.t ? `<p>${esc(x.t)}</p>` : ""}${x.n ? `<p class="mu">🔒 ${esc(x.n)}</p>` : ""}</div>`).join("") || '<p class="mu">Sin capturas este mes.</p>');
+}
+
+// Recordar sesión
+if (usaFB) {
+  firebase.auth().onAuthStateChanged(u => {
+    if (u) { user = u.email; entrar(); }
+    else { user = null; if (unsub) unsub(); $("app").classList.add("hidden"); $("login").classList.remove("hidden"); }
+  });
+} else { user = ls.get("if_user", null); if (user) entrar(); }
+</script>
+</body>
+</html>
