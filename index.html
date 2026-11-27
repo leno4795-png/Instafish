@@ -477,7 +477,7 @@ function menuPerfil(id){
 }
 function menu(){
   const it = (e, t, f) => `<div class="card pad" style="cursor:pointer;font-size:17px" onclick="${f}">${e} ${t}</div>`;
-  mostrar('<h3>☰ Menú</h3>' + (usaFB ? it("🔔", "Avisos en el móvil", "ajustesNotif()") + it("🚫", "Usuarios bloqueados", "listaBloq()") : "") + it("📜", "Normas de la comunidad", "normas()"));
+  mostrar('<h3>☰ Menú</h3>' + (usaFB ? it("🔔", "Avisos en el móvil", "ajustesNotif()") + it("🚫", "Usuarios bloqueados", "listaBloq()") + it("🔧", "Probar avisos", "diagPush()") : "") + it("📜", "Normas de la comunidad", "normas()"));
 }
 function normas(){
   mostrar('<h3>📜 Normas de la comunidad</h3><div class="card pad"><p><b>Respeto.</b> Nada de insultos, acoso ni odio.</p><p style="margin-top:8px"><b>Solo pesca.</b> Comparte tus capturas y tu experiencia. Sin spam ni publicidad engañosa.</p><p style="margin-top:8px"><b>Pesca responsable.</b> No se admiten especies protegidas, piezas fuera de talla, zonas vedadas ni maltrato animal.</p><p style="margin-top:8px"><b>Contenido adecuado.</b> Nada sexual, violento ni ilegal. No publiques fotos de otras personas sin su permiso.</p><p style="margin-top:8px"><b>Tu seguridad.</b> Puedes denunciar 🚩 o bloquear 🚫 a cualquiera. Retiramos lo que incumple estas normas y podemos suspender cuentas.</p></div>');
@@ -602,8 +602,26 @@ async function pushTo(to, t, pid){
   if (!PUSH_URL || !usaFB) return;
   try {
     const tok = await firebase.auth().currentUser.getIdToken();
-    await fetch(PUSH_URL, {method:"POST", headers:{"Content-Type":"application/json", "Authorization":"Bearer " + tok}, body: JSON.stringify({to, t, pid: pid || ""})});
-  } catch(e){}
+    const r = await fetch(PUSH_URL, {method:"POST", headers:{"Content-Type":"application/json", "Authorization":"Bearer " + tok}, body: JSON.stringify({to, t, pid: pid || ""})});
+    ls.set("if_lastpush", {c: Date.now(), t, s: r.status, r: (await r.text()).slice(0, 200)});
+  } catch(e){ ls.set("if_lastpush", {c: Date.now(), t, s: 0, r: String((e && e.message) || e).slice(0, 200)}); }
+}
+async function diagPush(){
+  const ok = b => b ? "✅" : "❌", fila = (t, v) => `<div class="card pad"><b>${t}</b><br>${v}</div>`;
+  mostrar("<h3>🔧 Probar avisos</h3><p class=\"mu\">Comprobando…</p>");
+  let h = "", ntk = "?", srv = "sin respuesta";
+  try { ntk = (await db.collection("users").doc(uid()).collection("tokens").get()).size; } catch(e){ ntk = "error: " + e.message; }
+  try { srv = await (await fetch(PUSH_URL)).text(); } catch(e){ srv = "no se pudo conectar: " + e.message; }
+  const sw = pushSoportado() ? ((await navigator.serviceWorker.getRegistrations()).length + " registrado(s)") : "no";
+  const per = "Notification" in window ? Notification.permission : "no existe", lp = ls.get("if_lastpush", null);
+  h += fila(ok(pushSoportado()) + " Este navegador admite avisos", pushSoportado() ? "Sí" : "No: en iPhone hay que añadir la app a la pantalla de inicio.");
+  h += fila(ok(per === "granted") + " Permiso del navegador", per === "granted" ? "Permitido" : per === "denied" ? "BLOQUEADO: actívalo en los ajustes del sitio (candado junto a la dirección → Notificaciones)." : "Aún no lo has aceptado: activa el interruptor en ☰ → Avisos en el móvil.");
+  h += fila(ok(ls.get("if_push", false)) + " Interruptor «Recibir avisos en este dispositivo»", ls.get("if_push", false) ? "Activado" : "Apagado: actívalo en ☰ → Avisos en el móvil.");
+  h += fila(ok(ntk > 0) + " Dispositivos guardados en tu cuenta", String(ntk));
+  h += fila(ok(/funcionando/.test(srv)) + " Servidor de avisos", esc(srv));
+  h += fila("Último aviso que ENVIASTE tú a otra persona", lp ? `${new Date(lp.c).toLocaleTimeString("es-ES")} · tipo ${esc(lp.t)} · respuesta ${lp.s}<br><span class="mu">${esc(lp.r)}</span><br><span class="mu">{"sent":1} = enviado · {"sent":0} = esa persona no tiene el móvil activado</span>` : "Todavía ninguno. Da un me gusta o sigue a alguien y vuelve aquí.");
+  h += '<p class="mu">Si todo está en ✅ y no llega: cierra la app del todo, mira que el móvil no tenga ahorro de batería para el navegador y que las notificaciones del navegador estén permitidas en los ajustes del móvil.</p>';
+  mostrar("<h3>🔧 Probar avisos</h3>" + h);
 }
 async function ajustesNotif(){
   const d = (await db.collection("users").doc(uid()).get()).data() || {}, np = d.np || {};
