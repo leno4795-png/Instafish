@@ -112,13 +112,18 @@ body.fv #bbox{position:fixed;top:50px;left:50%;transform:translateX(-50%);width:
       <button class="btn" style="margin-top:14px" onclick="activar()">Activar Premium (demo)</button>
     </div>
     <div id="pro" class="hidden">
+      <div style="display:flex;gap:8px;margin-bottom:10px"><button id="pt-t" class="btn" style="flex:1" onclick="proTab('t')">🌊 El tiempo</button><button id="pt-c" class="btn s" style="flex:1" onclick="proTab('c')">📅 Mi calendario</button></div>
+      <div id="pro-t">
       <div class="card pad"><div class="mu">Tu zona y tipo de pesca</div>
         <input id="zona" placeholder="Localidad (ej. Tarifa)">
         <select id="tipo" onchange="cargarPro()"><option value="spinning">Spinning</option><option value="surfcasting">Surfcasting</option><option value="eging">Eging (calamar)</option><option value="bote">Pesca en embarcación</option><option value="rio">Río / agua dulce</option><option value="mosca">Mosca</option></select>
         <button class="btn" onclick="buscarZona()">Ver pronóstico</button><p class="mu" id="zn"></p></div>
       <div id="pronos"></div>
+      </div>
+      <div id="pro-c" class="hidden">
       <div class="card pad"><h3>📅 Mi calendario de capturas</h3>
         <p class="mu">Tus capturas se guardan aquí solas cuando las subes desde ➕, con el tiempo y la luna de ese día.</p><div id="cal"></div></div>
+      </div>
     </div>
   </section>
 
@@ -668,6 +673,14 @@ function pintarPro(){
   const z = ls.get("if_zona", null); $("zn").textContent = z ? "📍 " + z.n : "Elige una localidad para ver tu pronóstico.";
   if (z) cargarPro();
   cal = new Date(); cal.setDate(1); pintarCal();
+  proTab(ls.get("if_ptab", "t"));
+}
+function proTab(k){
+  if (k !== "t" && k !== "c") k = "t";
+  ls.set("if_ptab", k);
+  $("pro-t").classList.toggle("hidden", k !== "t"); $("pro-c").classList.toggle("hidden", k !== "c");
+  $("pt-t").className = "btn" + (k === "t" ? "" : " s"); $("pt-c").className = "btn" + (k === "c" ? "" : " s");
+  if (k === "t" && typeof SPMAP !== "undefined" && SPMAP) setTimeout(() => SPMAP.invalidateSize(), 50);
 }
 async function buscarZona(){
   const q = $("zona").value.trim(); if (!q) return;
