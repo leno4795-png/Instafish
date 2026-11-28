@@ -41,7 +41,21 @@ nav span{display:block;font-size:20px}
 #ftop{display:none}
 body.fv{padding-bottom:0}
 body.fv header{display:none}
-body.fv #ftop{display:flex;position:fixed;top:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;z-index:6;justify-content:center;gap:20px;padding:14px;background:linear-gradient(#000b,transparent);align-items:center}
+body.fv #ftop{display:flex;position:fixed;top:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;z-index:6;justify-content:center;gap:16px;padding:14px;background:linear-gradient(#000b,transparent);align-items:center}
+#hbar{display:none}
+body.fv.ha #hbar{display:flex;position:fixed;top:46px;left:50%;transform:translateX(-50%);width:100%;max-width:480px;height:82px;box-sizing:border-box;z-index:5;gap:12px;padding:4px 14px;overflow-x:auto;background:var(--bg);scrollbar-width:none}
+body.ha #ftop{background:var(--bg)}
+body.ha #feed{margin-top:128px;height:calc(100dvh - 56px - 128px)}
+body.ha .vp{height:calc(100dvh - 56px - 128px)}
+#hbar::-webkit-scrollbar{display:none}
+.hc{flex:none;width:62px;text-align:center;cursor:pointer}
+.hc .ring{width:56px;height:56px;border-radius:50%;padding:3px;background:linear-gradient(135deg,#f08a24,#2bc0d0);margin:0 auto;position:relative;box-sizing:border-box}
+.hc .ring.vista{background:#6b7f89}
+.hc .ring.amigo{background:linear-gradient(135deg,#7bd96b,#2bc0d0)}
+.hc .ring.sin{background:none;border:2px dashed #ffffffaa}
+.hc .ring .av{width:100%;height:100%;border:2px solid #082230;font-size:20px;box-sizing:border-box}
+.hc small{display:block;color:#fff;font-size:11px;text-shadow:0 1px 3px #000;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:3px}
+.hc .plus{position:absolute;right:-3px;bottom:-3px;width:20px;height:20px;border-radius:50%;background:var(--ac);color:#082230;font-weight:700;line-height:18px;font-size:16px;border:2px solid #082230;text-align:center}
 #ftop span{color:#fff;opacity:.7;font-size:17px;cursor:pointer;text-shadow:0 1px 3px #000;padding-bottom:3px}
 #ftop span.on{opacity:1;font-weight:700;border-bottom:2px solid #fff}
 #ftop .lp{position:absolute;right:16px;opacity:1;font-size:20px;border:0}
@@ -78,10 +92,10 @@ body.fv #bbox{position:fixed;top:50px;left:50%;transform:translateX(-50%);width:
 <!-- APP -->
 <div id="app" class="hidden">
   <header><h1 style="display:flex;align-items:center;gap:8px"><img src="logo.png" alt="" style="width:36px;height:36px;object-fit:contain"><span class="marca" style="font-size:26px">La Picada</span></h1><div style="display:flex;gap:8px"><button class="btn s" onclick="lupa()" aria-label="Buscar">🔍</button><button class="btn s" onclick="menu()" aria-label="Menú">☰</button><button class="btn s" onclick="salir()">Salir</button></div></header>
-  <div id="ftop"><span id="t-sig" onclick="modo('sig')">Siguiendo</span><span id="t-todas" class="on" onclick="modo('todas')">Para ti</span><span class="lp" onclick="lupa()">🔍</span></div>
+  <div id="ftop"><span id="t-amigos" onclick="modo('amigos')">Amigos</span><span id="t-sig" onclick="modo('sig')">Siguiendo</span><span id="t-todas" class="on" onclick="modo('todas')">Para ti</span><span class="lp" onclick="lupa()">🔍</span></div>
   <div id="bbox" class="hidden pad"><input id="bq" placeholder="Buscar pescadores por nombre" oninput="buscar()"><div id="busq"></div></div>
 
-  <section id="v-feed"><div id="feed"></div></section>
+  <section id="v-feed"><div id="hbar"></div><input type="file" id="hf" accept="image/*" class="hidden" onchange="subirHist(this)"><div id="feed"></div></section>
 
   <section id="v-nuevo" class="box hidden">
     <h2>Nueva captura</h2>
@@ -187,7 +201,7 @@ async function auth(nuevo){
     ls.set("if_user", user); entrar();
   } catch(e){ $("msg").textContent = e.message; }
 }
-async function salir(){ try { await quitarPush(); } catch(e){} if (unN) { unN(); unN = null; } if (unC) { unC(); unC = null; } if (unsub) { unsub(); unsub = null; } if (usaFB) firebase.auth().signOut(); ls.set("if_user", null); user = null; bloq = new Set(); $("app").classList.add("hidden"); $("login").classList.remove("hidden"); }
+async function salir(){ try { await quitarPush(); } catch(e){} if (unN) { unN(); unN = null; } if (unC) { unC(); unC = null; } if (unsub) { unsub(); unsub = null; } if (usaFB) firebase.auth().signOut(); ls.set("if_user", null); user = null; bloq = new Set(); STG = []; STMIAS = []; if ($("hbar")) $("hbar").innerHTML = ""; $("app").classList.add("hidden"); $("login").classList.remove("hidden"); }
 function entrar(){ $("login").classList.add("hidden"); $("app").classList.remove("hidden"); if (usaFB) { cargarBloqueos(); escucharNotifs(); refrescarPush(); } if (pid && !pidHecho && usaFB) { pidHecho = true; ir("feed", true); abrirPost(pid); } else ir("feed"); }
 
 function ir(v, quieto){ document.body.classList.toggle("fv", v === "feed");
@@ -197,10 +211,10 @@ function ir(v, quieto){ document.body.classList.toggle("fv", v === "feed");
 }
 
 function esc(s){ return String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
-function dibujar(todos){
+function dibujar(todos, vacio){
   todos = todos.filter(p => !p.uid || !bloq.has(p.uid));
   const st = $("feed").scrollTop;
-  if (!todos.length) { $("feed").innerHTML = '<p class="box mu" style="padding-top:70px">Aún no hay capturas. ¡Sube la primera!</p>'; return; }
+  if (!todos.length) { $("feed").innerHTML = '<p class="box mu" style="padding:120px 24px 0;text-align:center">' + (vacio || "Aún no hay capturas. ¡Sube la primera!") + '</p>'; return; }
   $("feed").innerHTML = todos.map(p => {
     const lk = p.likes ? p.likes.length : (p.m || 0), yo = usaFB && p.likes && p.likes.includes(user), id = esc(p.id || ""), u = esc(p.uid || ""), mio = usaFB && p.uid === uid();
     const media = p.v ? `<video src="${esc(p.v)}" poster="${esc(p.f)}" controls playsinline loop muted preload="metadata"></video>` : p.f ? `<img src="${esc(p.f)}" alt="">` : `<div style="height:100%;display:grid;place-items:center;font-size:90px">🐟</div>`;
@@ -331,8 +345,19 @@ async function abrirPost(id){
 }
 async function cambiarAvatar(inp){ const f = inp.files[0]; if (!f) return; delete nomCache[uid()]; await db.collection("users").doc(uid()).set({av: await reducir(f, 200)}, {merge:true}); verPerfil(); }
 let pidHecho = false;
-let modoFeed = "todas", misGuard = new Set(), misSig = new Set();
-function modo(m){ modoFeed = m; document.querySelectorAll("#ftop span[id]").forEach(x => x.classList.toggle("on", x.id === "t-" + m)); pintarFeed(); }
+let modoFeed = "todas", misGuard = new Set(), misSig = new Set(), misSeg = new Set();
+function modo(m){ modoFeed = m; document.body.classList.toggle("ha", m === "amigos"); document.querySelectorAll("#ftop span[id]").forEach(x => x.classList.toggle("on", x.id === "t-" + m)); pintarFeed(); }
+const VACIO = {
+  amigos: "Todavía no tienes amigos. Los amigos son las personas que te siguen y a las que tú también sigues. Mira «Para ti» y empieza a seguir pescadores.",
+  sig: "Aún no sigues a nadie. En «Para ti» pulsa el + junto a un pescador para seguirlo y verás aquí sus capturas.",
+  todas: "No hay capturas nuevas de gente a la que no sigues. ¡Vuelve más tarde!"
+};
+const porFecha = (a, b) => (b.c ? b.c.seconds : 0) - (a.c ? a.c.seconds : 0);
+async function postsDe(ids){
+  ids = ids.filter(i => !bloq.has(i)).slice(0, 30);
+  const tr = []; for (let i = 0; i < ids.length; i += 10) tr.push(db.collection("posts").where("uid", "in", ids.slice(i, i + 10)).get());
+  return (await Promise.all(tr)).flatMap(s => s.docs.map(d => ({id: d.id, ...d.data()}))).sort(porFecha).slice(0, 40);
+}
 async function pintarFeed(){
   if (!usaFB) { dibujar([...ls.get("if_posts", []), ...demoPosts]); return; }
   if (unsub) { unsub(); unsub = null; }
@@ -340,19 +365,42 @@ async function pintarFeed(){
   try {
     misGuard = new Set((await me.collection("saved").get()).docs.map(d => d.id));
     misSig = new Set((await me.collection("following").get()).docs.map(d => d.id));
-    await cargarBloqueos();
+    misSeg = new Set((await me.collection("followers").get()).docs.map(d => d.id));
+    await cargarBloqueos(); if (modoFeed === "amigos") cargarHistorias();
     if (modoFeed === "todas") {
-      unsub = db.collection("posts").orderBy("c","desc").limit(30).onSnapshot(sn => dibujar(sn.docs.map(d => ({id:d.id, ...d.data()}))), fallo);
+      unsub = db.collection("posts").orderBy("c", "desc").limit(60).onSnapshot(sn => dibujar(sn.docs.map(d => ({id: d.id, ...d.data()})).filter(p => !p.uid || (p.uid !== uid() && !misSig.has(p.uid))), VACIO.todas), fallo);
     } else if (modoFeed === "guard") {
       const ps = await Promise.all([...misGuard].map(id => db.collection("posts").doc(id).get()));
-      dibujar(ps.filter(d => d.exists).map(d => ({id:d.id, ...d.data()})));
+      dibujar(ps.filter(d => d.exists).map(d => ({id: d.id, ...d.data()})));
+    } else if (modoFeed === "amigos") {
+      dibujar(await postsDe([...misSig].filter(i => misSeg.has(i))), VACIO.amigos);
     } else {
-      const ids = (await me.collection("following").get()).docs.map(d => d.id).slice(0, 10);
-      if (!ids.length) { dibujar([]); return; }
-      const s = await db.collection("posts").where("uid","in",ids).limit(30).get();
-      dibujar(s.docs.map(d => ({id:d.id, ...d.data()})).sort((a, b) => (b.c ? b.c.seconds : 0) - (a.c ? a.c.seconds : 0)));
+      dibujar(await postsDe([...misSig]), VACIO.sig);
     }
   } catch(e){ fallo(e); }
+}
+// ===== Historias en circulitos =====
+let STG = [], STMIAS = [], STSEEN = ls.get("if_seen", {});
+async function cargarHistorias(){
+  if (!usaFB || !$("hbar")) return;
+  try {
+    const corte = firebase.firestore.Timestamp.fromMillis(Date.now() - 864e5);
+    const s = await db.collection("stories").where("c", ">", corte).get(), por = {};
+    s.docs.map(d => ({id: d.id, ...d.data()})).filter(x => x.uid && x.c && !bloq.has(x.uid)).forEach(x => (por[x.uid] = por[x.uid] || []).push(x));
+    STMIAS = por[uid()] || [];
+    STG = Object.keys(por).filter(i => i !== uid() && misSig.has(i) && misSeg.has(i)).map(i => {
+      const l = por[i].sort((a, b) => a.c.seconds - b.c.seconds);
+      return {uid: i, u: l[0].u, last: l[l.length - 1].c.seconds, amigo: misSeg.has(i)};
+    }).sort((a, b) => (b.amigo - a.amigo) || (b.last - a.last));
+    pintaBarra();
+  } catch(e){}
+}
+function pintaBarra(){
+  const b = $("hbar"); if (!b || !usaFB) return;
+  const lastMia = STMIAS.length ? Math.max(...STMIAS.map(x => x.c.seconds)) : 0;
+  let h = `<div class="hc" onclick="${STMIAS.length ? `verHist('${uid()}')` : "$('hf').click()"}"><div class="ring ${STMIAS.length ? ((STSEEN[uid()] || 0) >= lastMia ? "vista" : "") : "sin"}"><div class="av" data-u="${uid()}">🎣</div><span class="plus" onclick="event.stopPropagation();$('hf').click()">+</span></div><small>Tu historia</small><span class="nom" data-u="${uid()}" style="display:none"></span></div>`;
+  STG.forEach(g => { h += `<div class="hc" onclick="verHist('${g.uid}')"><div class="ring ${(STSEEN[g.uid] || 0) >= g.last ? "vista" : g.amigo ? "amigo" : ""}"><div class="av" data-u="${g.uid}">🎣</div></div><small class="nom" data-u="${g.uid}">${esc(g.u || "")}</small></div>`; });
+  b.innerHTML = h; nombres();
 }
 async function guardar(id, b){
   if (!usaFB || !id) return; const r = db.collection("users").doc(uid()).collection("saved").doc(id);
@@ -414,18 +462,26 @@ function pintaHist(){
   const x = HI[hi];
   mostrar(`<p class="mu">${esc(x.u || "")} · ${hi + 1}/${HI.length}${x.uid === uid() ? ` · <span style="cursor:pointer" onclick="borrarHist('${x.id}')">🗑 Borrar</span>` : ""}</p><img src="${esc(x.f)}" style="width:100%;border-radius:12px;cursor:pointer" onclick="sigHist()"><p class="mu">Toca la imagen para ver la siguiente</p>`);
 }
-function sigHist(){ hi++; if (hi >= HI.length) { cerrar(); return; } pintaHist(); }
+function sigHist(){
+  hi++;
+  if (hi >= HI.length) {
+    const i = STG.findIndex(g => g.uid === HI[0].uid), nx = i >= 0 ? STG[i + 1] : STG[0];
+    cerrar(); pintaBarra(); if (nx) verHist(nx.uid); return;
+  }
+  pintaHist();
+}
 async function verHist(id){
   const s = await db.collection("stories").where("uid","==",id).get();
   HI = s.docs.map(d => ({id:d.id, ...d.data()})).filter(x => x.c && Date.now() - x.c.seconds * 1000 < 864e5).sort((a, b) => a.c.seconds - b.c.seconds);
-  if (!HI.length) return; hi = 0; pintaHist();
+  if (!HI.length) return; hi = 0; STSEEN[id] = HI[HI.length - 1].c.seconds; ls.set("if_seen", STSEEN); pintaHist();
 }
 async function subirHist(inp){
   const f = inp.files[0]; if (!f) return;
   await db.collection("stories").add({uid:uid(), u:miNombre(), f:await reducir(f, 600), c:firebase.firestore.FieldValue.serverTimestamp()});
-  verPerfil();
+  inp.value = "";
+  if ($("v-feed").classList.contains("hidden")) verPerfil(); else cargarHistorias();
 }
-async function borrarHist(id){ await db.collection("stories").doc(id).delete(); cerrar(); verPerfil(); }
+async function borrarHist(id){ await db.collection("stories").doc(id).delete(); cerrar(); if ($("v-feed").classList.contains("hidden")) verPerfil(); else cargarHistorias(); }
 // ===== Seguridad: bloquear, denunciar y normas =====
 let bloq = new Set();
 let notifsAll = [], chatsAll = [];
